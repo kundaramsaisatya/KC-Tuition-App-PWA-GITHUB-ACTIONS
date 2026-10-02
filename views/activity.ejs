@@ -1,0 +1,38 @@
+<%- include('partials/header',{title:'Student Activity'}) %>
+<div class="app-shell teacher-app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">KC</div><div><strong>Kundaram Chandrakala</strong><small>Tuition Manager</small></div></div>
+    <div class="nav-title">Teaching</div>
+    <nav class="side-nav"><a href="/teacher">← <span>Back to Dashboard</span></a></nav>
+    <div class="sidebar-footer"><div class="teacher-mini"><small>Teacher</small><strong>Kundaram Chandrakala</strong></div></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div class="top-actions"><a class="button secondary" href="/teacher">← Dashboard</a><div class="topbar-title"><h1>Student Activity</h1><p>Review exam and portal activity student by student.</p></div></div><div class="avatar">KC</div></header>
+    <div class="content">
+      <div class="section-toolbar"><div><span class="eyebrow">STUDENT ACTIVITY</span><h2><%= student ? student.name+' · Activity' : 'All students' %></h2><p><%= student ? 'Detailed activity log for this student.' : 'Select a student to view their complete activity log.' %></p></div></div>
+      <div class="activity-layout">
+        <section class="card activity-students">
+          <div class="section-head"><div><h3>Students</h3><p><%= students.length %> profiles</p></div></div>
+          <div class="activity-student-list">
+            <% students.forEach(function(s){ %>
+              <a class="activity-student <%= student && String(student._id)===String(s._id)?'active':'' %>" href="/teacher/activity/<%= s._id %>">
+                <span class="student-avatar"><%= s.name.slice(0,1) %></span>
+                <span class="student-main"><strong><%= s.name %></strong><span class="small">Std <%= s.standard %></span></span>
+                <span>›</span>
+              </a>
+            <% }); %>
+          </div>
+        </section>
+        <section class="card activity-log">
+          <% if(!student){ %>
+            <div class="activity-empty"><div class="empty-icon">◌</div><h3>Select a student</h3><p>Choose a student from the list to see login, exam, camera and other recorded activity.</p></div>
+          <% } else { %>
+            <div class="activity-profile"><div class="student-avatar large-avatar"><%= student.name.slice(0,1) %></div><div><h3><%= student.name %></h3><p>Std <%= student.standard %> · Camera <%= student.cameraGranted?'Granted':'Not granted' %></p></div></div>
+            <div class="table-wrap"><table><tr><th>Time</th><th>Action</th><th>Details</th><th>IP</th></tr><% if(!activities.length){ %><tr><td colspan="4" class="empty">No activity recorded yet.</td></tr><% } else { activities.forEach(function(a){ %><tr><td><%= new Date(a.createdAt).toLocaleString() %></td><td><span class="pill"><%= a.action %></span></td><td><%= a.details||'-' %></td><td><%= a.ip||'-' %></td></tr><% }); } %></table></div>
+          <% } %>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="/js/pwa.js"></script><%- include('partials/footer') %>

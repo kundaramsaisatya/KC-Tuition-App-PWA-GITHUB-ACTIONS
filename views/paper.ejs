@@ -1,0 +1,15 @@
+<%- include('partials/header',{title:set.title}) %>
+<div class="paper-shell" oncontextmenu="return false">
+  <header class="topbar"><div><strong><%= set.title %></strong><span class="student-tag"><%= student.name %> · <%= student.paperCode %></span></div><form method="post" action="/logout"><button class="secondary">Logout</button></form></header>
+  <% if(querySaved){ %><div class="success">Homework status saved.</div><% } %>
+  <div class="notice">This paper is for <%= student.name %> only. Do not share it.</div>
+  <main class="paper" id="paper-content">
+    <div class="watermark"><%= student.name %> · <%= student.paperCode %></div>
+    <h1><%= set.title %></h1>
+    <p>Answer all questions. Write your answers in your notebook.</p>
+    <% set.questions.forEach((q,i)=>{ %><section class="question"><div class="qnum">Q<%= i+1 %>.</div><div><%= q[0] %></div></section><% }) %>
+  </main>
+  <section class="homework card"><h2>Homework status</h2><p>After completing the questions, update your status here.</p><form method="post" action="/homework"><label><input type="radio" name="status" value="done" <%= student.homeworkStatus==='done'?'checked':'' %>> Homework done</label><label><input type="radio" name="status" value="not_done" <%= student.homeworkStatus!=='done'?'checked':'' %>> Not completed yet</label><label>Note (optional)</label><textarea name="note" maxlength="500" placeholder="e.g. Completed Q1–Q20"><%= student.homeworkNote %></textarea><button>Save homework status</button></form></section>
+</div>
+<script>window.paperProtection={student:'<%= student.name.replace(/'/g,"\\'") %>',code:'<%= student.paperCode %>'};</script>
+<script src="/js/pwa.js"></script><%- include('partials/footer') %>

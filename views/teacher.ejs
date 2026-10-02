@@ -1,0 +1,296 @@
+<%- include('partials/header',{title:'Teacher Dashboard'}) %>
+
+<div class="app-shell teacher-app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">KC</div>
+      <div><strong>Kundaram Chandrakala</strong><small>Tuition Manager</small></div>
+    </div>
+
+    <div class="nav-title">Teaching</div>
+    <nav class="side-nav">
+      <button data-section="overview"><span class="nav-icon">⌂</span><span>Overview</span></button>
+      <button data-section="students"><span class="nav-icon">◉</span><span>Students</span></button>
+      <button data-section="attendance"><span class="nav-icon">✓</span><span>Attendance</span></button>
+      <button data-section="tests"><span class="nav-icon">▣</span><span>Tests</span></button>
+      <button data-section="marks"><span class="nav-icon">★</span><span>Marks</span></button>
+      <button data-section="homework"><span class="nav-icon">▤</span><span>Homework</span></button>
+      <button data-section="fees"><span class="nav-icon">₹</span><span>Fees</span></button>
+      <button data-section="schedule"><span class="nav-icon">◷</span><span>Classes</span></button>
+      <button data-section="communication"><span class="nav-icon">✦</span><span>Announcements</span></button>
+      <button data-section="recordings"><span class="nav-icon">▶</span><span>Exam Recordings</span></button>
+    </nav>
+
+    <div class="nav-title">Account</div>
+    <nav class="side-nav">
+      <a href="/teacher/activity"><span class="nav-icon">◌</span><span>Student Activity</span></a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="teacher-mini"><small>Teacher</small><strong><%= teacherName %></strong></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="top-actions">
+        <button class="mobile-menu" data-menu>☰</button>
+        <div class="topbar-title">
+          <h1 data-page-title>Overview</h1>
+          <p data-page-desc>Everything important at a glance.</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="avatar">KC</div>
+        <form method="post" action="/teacher/logout"><button class="secondary">Logout</button></form>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <section class="section active" data-panel="overview" data-title="Overview" data-desc="Everything important at a glance.">
+        <div class="page-intro">
+          <div><span class="eyebrow">TEACHER WORKSPACE</span><h2>Good day, <%= teacherName %>.</h2><p>Run your tuition classes from one place.</p></div>
+          <div class="date-chip"><%= new Date().toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}) %></div>
+        </div>
+
+        <div class="grid cards stat-grid">
+          <button class="card stat stat-link" data-section="students"><span class="iconbox">◉</span><span class="stat-label">Students</span><span class="stat-value"><%= students.length %></span><span class="stat-foot">Manage profiles</span></button>
+          <button class="card stat stat-link" data-section="attendance"><span class="iconbox">✓</span><span class="stat-label">Today's attendance</span><span class="stat-value"><%= attendance.length %></span><span class="stat-foot">Recorded today</span></button>
+          <button class="card stat stat-link" data-section="tests"><span class="iconbox">▣</span><span class="stat-label">Tests</span><span class="stat-value"><%= exams.length %></span><span class="stat-foot">Online tests</span></button>
+          <button class="card stat stat-link" data-section="marks"><span class="iconbox">★</span><span class="stat-label">Marks</span><span class="stat-value"><%= marks.length %></span><span class="stat-foot">Saved records</span></button>
+        </div>
+
+        <div class="grid two overview-grid">
+          <section class="card hero-panel">
+            <span class="pill">Kundaram Chandrakala Tuition</span>
+            <h2>Everything is organized.</h2>
+            <p>Use the tabs to manage students, daily attendance, online tests, individual marks, homework, fees, classes, announcements and recordings.</p>
+            <div class="quick-actions">
+              <button class="button" data-section="attendance">Take attendance</button>
+              <button class="button secondary" data-section="tests">Manage tests</button>
+              <button class="button secondary" data-section="marks">Enter marks</button>
+            </div>
+          </section>
+          <section class="card">
+            <div class="section-head"><div><h3>Needs attention</h3><p>Items that may need action today.</p></div></div>
+            <div class="attention-list">
+              <button class="attention-row" data-section="attendance"><span>Attendance</span><span class="pill <%= attendance.length===students.filter(s=>s.status==='active').length?'success':'warning' %>"><%= attendance.length %>/<%= students.filter(s=>s.status==='active').length %></span></button>
+              <button class="attention-row" data-section="fees"><span>Unpaid fees</span><span class="pill <%= fees.length?'danger':'success' %>"><%= fees.length %></span></button>
+              <button class="attention-row" data-section="recordings"><span>Exam recordings</span><span class="pill"><%= recordings.length %></span></button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="section" data-panel="students" data-title="Students" data-desc="Manage student profiles and access.">
+        <div class="section-toolbar"><div><span class="eyebrow">STUDENTS</span><h2>Student management</h2><p>Add, edit, activate or deactivate student access.</p></div><span class="count-chip"><%= students.length %> students</span></div>
+        <div class="grid two">
+          <section class="card">
+            <div class="section-head"><div><h3>Add student</h3><p>Create a complete profile.</p></div></div>
+            <form method="post" action="/teacher/student">
+              <div class="form-grid"><label>Name<input name="name" required placeholder="Student name"></label><label>Student ID<input name="studentId" required placeholder="S09"></label></div>
+              <div class="form-grid"><label>Standard<select name="standard"><option value="9">9</option><option value="10">10</option></select></label><label>Username<input name="username" required placeholder="student01"></label></div>
+              <label>Password<input name="password" required placeholder="Initial password"></label>
+              <div class="form-grid"><label>Parent name<input name="parentName"></label><label>Parent phone<input name="parentPhone" inputmode="tel"></label></div>
+              <div class="form-grid"><label>Student phone<input name="studentPhone" inputmode="tel"></label><label>School<input name="school"></label></div>
+              <label>Subjects<input name="subjects" placeholder="English, Maths, Science"></label>
+              <label>Joining date<input type="date" name="joiningDate"></label>
+              <button>Add student</button>
+            </form>
+          </section>
+
+          <section class="card">
+            <div class="section-head"><div><h3>Students</h3><p>Quick status overview.</p></div></div>
+            <div class="student-mini-list">
+              <% students.forEach(function(s){ %>
+                <div class="student-card">
+                  <div class="student-avatar"><%= s.name.slice(0,1) %></div>
+                  <div class="student-main"><strong><%= s.name %></strong><span class="small"><%= s.studentId %> · Std <%= s.standard %></span></div>
+                  <span class="pill <%= s.status==='active'?'success':'danger' %>"><%= s.status %></span>
+                </div>
+              <% }); %>
+            </div>
+          </section>
+        </div>
+
+        <section class="card table-card">
+          <div class="section-head"><div><h3>All student profiles</h3><p>Update contact details or access status.</p></div></div>
+          <div class="table-wrap"><table><tr><th>Student</th><th>Class</th><th>Parent</th><th>Status</th><th>Manage</th></tr>
+            <% students.forEach(function(s){ %>
+              <tr>
+                <td><strong><%= s.name %></strong><br><span class="small"><%= s.studentId %> · <%= s.username %></span></td>
+                <td>Std <%= s.standard %></td>
+                <td><%= s.parentName||'-' %><br><span class="small"><%= s.parentPhone||'-' %></span></td>
+                <td><span class="pill <%= s.status==='active'?'success':'danger' %>"><%= s.status %></span></td>
+                <td class="action-cell">
+                  <details><summary class="button secondary small-button">Edit</summary>
+                    <form class="inline-edit" method="post" action="/teacher/student/<%= s._id %>/update">
+                      <input name="name" value="<%= s.name %>" required>
+                      <div class="form-grid"><input name="standard" type="number" min="9" max="10" value="<%= s.standard %>"><input name="parentName" value="<%= s.parentName||'' %>" placeholder="Parent"></div>
+                      <div class="form-grid"><input name="parentPhone" value="<%= s.parentPhone||'' %>" placeholder="Parent phone"><input name="studentPhone" value="<%= s.studentPhone||'' %>" placeholder="Student phone"></div>
+                      <input name="school" value="<%= s.school||'' %>" placeholder="School"><input name="subjects" value="<%= s.subjects?.join(', ')||'' %>" placeholder="Subjects"><input name="password" placeholder="New password (optional)">
+                      <button>Save changes</button>
+                    </form>
+                  </details>
+                  <form method="post" action="/teacher/student/<%= s._id %>/status"><button class="<%= s.status==='active'?'danger':'success' %> small-button"><%= s.status==='active'?'Deactivate':'Activate' %></button></form>
+                </td>
+              </tr>
+            <% }); %>
+          </table></div>
+        </section>
+      </section>
+
+      <section class="section" data-panel="attendance" data-title="Attendance" data-desc="Mark every student's status for the selected date.">
+        <div class="section-toolbar">
+          <div><span class="eyebrow">DAILY ROUTINE</span><h2>Attendance</h2><p>Choose exactly one status for every student. Previous records for the selected date are loaded automatically.</p></div>
+          <span class="date-chip"><%= new Date(attendanceDate+'T00:00:00').toLocaleDateString() %></span>
+        </div>
+        <form method="post" action="/teacher/attendance/bulk" class="attendance-form card" id="attendanceForm">
+          <div class="attendance-toolbar">
+            <label class="date-field">Date<input id="attendanceDate" type="date" name="date" value="<%= attendanceDate %>" required></label>
+            <label class="master-check"><input type="checkbox" id="markAllPresent"> <span>Mark all present</span></label>
+            <label class="note-field">Note<input name="note" placeholder="Optional note for this date"></label>
+            <button type="submit">Save attendance</button>
+          </div>
+          <div class="attendance-summary"><span><strong id="presentCount">0</strong> Present</span><span><strong id="absentCount">0</strong> Absent</span><span><strong id="lateCount">0</strong> Late</span><span><strong id="leaveCount">0</strong> Leave</span></div>
+          <div class="attendance-list">
+            <% students.filter(function(s){return s.status==='active';}).forEach(function(s){ const rec=attendance.find(function(a){return String(a.studentId?._id||a.studentId)===String(s._id)}); const current=rec?.status||'absent'; %>
+              <div class="attendance-row">
+                <div class="student-main"><strong><%= s.name %></strong><span class="small">Std <%= s.standard %></span></div>
+                <select name="status[<%= s._id %>]" class="attendance-status status-<%= current %>" data-status-select>
+                  <option value="present" <%= current==='present'?'selected':'' %>>Present</option>
+                  <option value="absent" <%= current==='absent'?'selected':'' %>>Absent</option>
+                  <option value="late" <%= current==='late'?'selected':'' %>>Late</option>
+                  <option value="leave" <%= current==='leave'?'selected':'' %>>Leave</option>
+                </select>
+              </div>
+            <% }); %>
+          </div>
+        </form>
+      </section>
+
+      <section class="section" data-panel="tests" data-title="Tests" data-desc="Import and assign online tests to students.">
+        <div class="section-toolbar"><div><span class="eyebrow">ONLINE TESTS</span><h2>Tests</h2><p>Import one JSON paper set. The app assigns the correct paper to each student.</p></div></div>
+        <div class="grid two">
+          <section class="card import-card">
+            <div class="import-icon">↑</div><h3>Import test</h3><p>Upload a JSON file containing the individual student papers.</p>
+            <% if(examError){ %><div class="notice error"><%= examError %></div><% } %>
+            <form method="post" action="/teacher/exam/import" enctype="multipart/form-data">
+              <label class="file-drop">Choose test JSON<input name="testFile" type="file" accept="application/json,.json" required></label>
+              <div class="notice">Each paper: 10 Direct → Indirect + 10 Grammar questions. Each Grammar question has 4 subquestions.</div>
+              <button>Import & assign test</button>
+            </form>
+          </section>
+          <section class="card">
+            <div class="section-head"><div><h3>Imported tests</h3><p>Tests currently assigned through online papers.</p></div></div>
+            <% if(!exams.length){ %><div class="empty">No online tests imported yet.</div><% } else { %>
+              <div class="test-list"><% exams.forEach(function(e){ %><div class="test-card"><div class="test-icon">▣</div><div class="student-main"><strong><%= e.title %></strong><span class="small">Online test · <%= e.paperCount %> papers · <%= e.duration %> min</span></div><span class="pill success">Assigned</span><form method="post" action="/teacher/test/<%= e._id %>/delete" onsubmit="return confirm('Delete this online test, its marks and student assignments?')"><button class="danger small-button">Delete</button></form></div><% }); %></div>
+            <% } %>
+          </section>
+        </div>
+      </section>
+
+      <section class="section" data-panel="marks" data-title="Marks" data-desc="Enter and publish marks to one student at a time.">
+        <div class="section-toolbar"><div><span class="eyebrow">RESULTS</span><h2>Individual marks</h2><p>Save a student's score and publish it to their dashboard.</p></div></div>
+        <section class="card mark-entry-card">
+          <form method="post" action="/teacher/mark" id="markForm">
+            <div class="form-grid three"><label>Test<select name="testId" id="markTest" required><option value="">Select test</option><% tests.forEach(function(t){ %><option value="<%= t._id %>" data-standard="<%= t.standard %>" data-total="<%= t.totalMarks %>" data-source-exam="<%= t.sourceExamId||'' %>"><%= t.name %> · <%= t.sourceExamId ? 'Online' : 'Standard '+t.standard %> · <%= t.totalMarks %> marks</option><% }); %></select></label><label>Student<select name="studentId" id="markStudent" required><option value="">Select test first</option></select></label><label>Marks<input name="marks" id="markValue" type="number" min="0" required></label></div>
+            <label>Remark<input name="remark" placeholder="Optional feedback for the student"></label>
+            <label class="publish-check"><input type="checkbox" name="published" value="true" checked> Publish this result to the student's dashboard</label>
+            <div class="mark-actions"><button>Save mark</button><button type="reset" class="secondary">Clear</button></div>
+          </form>
+        </section>
+        <section class="card table-card"><div class="section-head"><div><h3>Recent marks</h3><p>Published results are visible to students.</p></div></div><div class="table-wrap"><table><tr><th>Student</th><th>Test</th><th>Score</th><th>Status</th><th>Remark</th></tr><% if(!marks.length){ %><tr><td colspan="5" class="empty">No marks saved yet.</td></tr><% } else { marks.forEach(function(m){ %><tr><td><strong><%= m.studentId?.name||'Student' %></strong><br><span class="small">Std <%= m.studentId?.standard||'-' %></span></td><td><%= m.testId?.name||'Test' %></td><td><strong><%= m.marks %>/<%= m.testId?.totalMarks||'-' %></strong></td><td><span class="pill <%= m.published?'success':'warning' %>"><%= m.published?'Published':'Draft' %></span></td><td><%= m.remark||'-' %></td></tr><% }); } %></table></div></section>
+      </section>
+
+      <section class="section" data-panel="homework" data-title="Homework" data-desc="Assign protected study material.">
+        <div class="section-toolbar"><div><span class="eyebrow">LEARNING MATERIAL</span><h2>Homework</h2><p>Assign PDF, DOCX and image materials.</p></div></div>
+        <div class="grid two">
+          <section class="card"><h3>Assign homework</h3><form method="post" action="/teacher/homework" enctype="multipart/form-data"><input name="title" placeholder="Homework title" required><textarea name="description" placeholder="Instructions / description"></textarea><div class="form-grid"><label>Standard<select name="standard"><option value="9">9</option><option value="10">10</option></select></label><label>Subject<input name="subject" placeholder="English"></label></div><label>Due date<input name="dueDate" type="date" required></label><label class="file-drop">Attach PDF, DOCX or image<input name="attachment" type="file" accept="application/pdf,.pdf,.docx,image/jpeg,image/png,image/webp"></label><div class="notice">Students receive a protected viewer without a normal download button.</div><button>Assign homework</button></form></section>
+          <section class="card"><h3>Recent homework</h3><% if(!homeworks.length){ %><div class="empty">No homework assigned yet.</div><% } else { homeworks.slice(0,10).forEach(function(h){ %><div class="item-row item"><span><strong><%= h.title %></strong><br><span class="small">Std <%= h.standard %> · Due <%= new Date(h.dueDate).toLocaleDateString() %></span></span><% if(h.attachment){ %><a class="button secondary" href="/teacher/homework/<%= h._id %>/file" target="_blank">Preview</a><% } %></div><% }); } %></section>
+        </div>
+      </section>
+
+      <section class="section" data-panel="fees" data-title="Fees" data-desc="Track pending and completed tuition payments.">
+        <div class="section-toolbar"><div><span class="eyebrow">FINANCE</span><h2>Fees</h2><p>Record payments and clear pending dues.</p></div></div>
+        <div class="grid two"><section class="card"><h3>Add fee</h3><form method="post" action="/teacher/fee"><label>Student<select name="studentId"><% students.filter(function(s){return s.status==='active';}).forEach(function(s){ %><option value="<%= s._id %>"><%= s.name %> · Std <%= s.standard %></option><% }); %></select></label><input name="month" placeholder="October 2026" required><input name="amount" type="number" min="0" placeholder="Amount" required><input name="dueDate" type="date" required><select name="method"><option>Cash</option><option>UPI</option><option>Bank</option></select><button>Add fee</button></form></section><section class="card"><h3>Pending payments</h3><% if(!fees.length){ %><div class="empty">All fees are up to date.</div><% } else { fees.forEach(function(f){ %><div class="item-row item"><span><strong><%= f.studentId?.name||'Student' %></strong><br><span class="small"><%= f.month %> · Due <%= new Date(f.dueDate).toLocaleDateString() %></span></span><span class="right-stack"><strong>₹<%= f.amount %></strong><form method="post" action="/teacher/fee/<%= f._id %>/pay"><button class="success">Mark paid</button></form></span></div><% }); } %></section></div>
+      </section>
+
+      <section class="section" data-panel="schedule" data-title="Classes" data-desc="Plan upcoming tuition sessions.">
+        <div class="section-toolbar"><div><span class="eyebrow">TIMETABLE</span><h2>Classes</h2><p>Plan upcoming sessions by standard and time.</p></div></div>
+        <div class="grid two"><section class="card"><h3>Schedule class</h3><form method="post" action="/teacher/class"><input name="title" placeholder="Class title" required><input name="subject" placeholder="Subject"><input name="standard" type="number" min="9" max="10" required><input name="date" type="date" required><div class="form-grid"><input name="startTime" type="time" required><input name="endTime" type="time" required></div><input name="room" placeholder="Room"><button>Schedule class</button></form></section><section class="card"><h3>Upcoming classes</h3><% if(!classes.length){ %><div class="empty">No classes scheduled.</div><% } else { classes.forEach(function(c){ %><div class="class-card"><strong><%= c.title %></strong><span class="small">Std <%= c.standard %> · <%= c.subject||'General' %></span><span class="small"><%= new Date(c.date).toLocaleDateString() %> · <%= c.startTime %>–<%= c.endTime %> · <%= c.room||'Room not set' %></span></div><% }); } %></section></div>
+      </section>
+
+      <section class="section" data-panel="communication" data-title="Announcements" data-desc="Keep students informed.">
+        <div class="section-toolbar"><div><span class="eyebrow">COMMUNICATION</span><h2>Announcements</h2><p>Publish updates for everyone or a standard.</p></div></div>
+        <div class="grid two"><section class="card"><h3>New announcement</h3><form method="post" action="/teacher/announcement"><input name="title" placeholder="Title" required><textarea name="body" placeholder="Message" required></textarea><select name="audience"><option value="all">Everyone</option><option value="std9">Std 9</option><option value="std10">Std 10</option></select><button>Publish announcement</button></form></section><section class="card"><h3>Recent announcements</h3><% if(!announcements.length){ %><div class="empty">No announcements yet.</div><% } else { announcements.forEach(function(a){ %><article class="announcement-card"><div class="announcement-dot"></div><div><div class="item-row"><strong><%= a.title %></strong><span class="pill"><%= a.audience %></span></div><p class="muted"><%= a.body %></p><span class="small"><%= new Date(a.createdAt).toLocaleString() %></span></div></article><% }); } %></section></div>
+      </section>
+
+      <section class="section" data-panel="recordings" data-title="Exam Recordings" data-desc="Review private exam recordings stored locally.">
+        <div class="section-toolbar"><div><span class="eyebrow">PROCTORING</span><h2>Exam recordings</h2><p>Review, keep or delete locally stored recordings.</p></div></div>
+        <section class="card"><div class="notice">Unflagged recordings are automatically cleaned up after 7 days.</div><div class="recording-grid"><% if(!recordings.length){ %><div class="empty">No exam recordings yet.</div><% } else { recordings.forEach(function(r){ %><article class="recording-card"><div class="recording-thumb">▶</div><div><strong><%= r.studentId?.name||'Student' %></strong><div class="small">Std <%= r.studentId?.standard||'-' %> · <%= new Date(r.uploadedAt).toLocaleString() %></div><div class="small"><%= Math.round((r.size||0)/1024/1024*10)/10 %> MB</div></div><div class="recording-actions"><a class="button secondary" href="/teacher/recording/<%= r._id %>" target="_blank">Watch</a><form method="post" action="/teacher/recording/<%= r._id %>/flag"><input type="hidden" name="flagged" value="<%= r.flagged?'false':'true' %>"><button class="secondary"><%= r.flagged?'Unkeep':'Keep' %></button></form><form method="post" action="/teacher/recording/<%= r._id %>/delete" onsubmit="return confirm('Delete this recording?')"><button class="danger">Delete</button></form></div></article><% }); } %></div></section>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div class="bottom-nav teacher-bottom">
+  <button data-section="overview">⌂<br><span>Home</span></button>
+  <button data-section="students">◉<br><span>Students</span></button>
+  <button data-section="attendance">✓<br><span>Attend</span></button>
+  <button data-section="tests">▣<br><span>Tests</span></button>
+  <button data-section="marks">★<br><span>Marks</span></button>
+  <button data-section="fees">₹<br><span>Fees</span></button>
+  <button data-menu>☰<br><span>More</span></button>
+</div>
+
+<script>
+(function(){
+  const date=document.getElementById('attendanceDate');
+  if(date){
+    date.addEventListener('change',()=>{
+      const target=new URL(window.location.href);
+      target.searchParams.set('attendanceDate',date.value);
+      target.hash='attendance';
+      window.location.href=target.toString();
+    });
+  }
+  const master=document.getElementById('markAllPresent');
+  const statusSelects=[...document.querySelectorAll('[data-status-select]')];
+  function updateStatusStyles(){
+    const counts={present:0,absent:0,late:0,leave:0};
+    statusSelects.forEach(s=>{
+      const v=s.value; counts[v]=(counts[v]||0)+1;
+      s.className='attendance-status status-'+v;
+    });
+    ['present','absent','late','leave'].forEach(v=>{const el=document.getElementById(v+'Count');if(el)el.textContent=counts[v]||0;});
+    if(master) master.checked=statusSelects.length>0&&statusSelects.every(s=>s.value==='present');
+  }
+  master?.addEventListener('change',()=>{statusSelects.forEach(s=>s.value=master.checked?'present':'absent');updateStatusStyles();});
+  statusSelects.forEach(s=>s.addEventListener('change',updateStatusStyles));
+  updateStatusStyles();
+
+  const tests=<%- JSON.stringify(tests.map(function(t){return {_id:String(t._id),standard:Number(t.standard),totalMarks:Number(t.totalMarks||0),sourceExamId:t.sourceExamId?String(t.sourceExamId):''}})) %>;
+  const students=<%- JSON.stringify(students.filter(function(s){return s.status==='active';}).map(function(s){return {_id:String(s._id),name:s.name,standard:Number(s.standard),assignedExamId:s.assignedExamId?String(s.assignedExamId):''}})) %>;
+  const testSelect=document.getElementById('markTest');
+  const studentSelect=document.getElementById('markStudent');
+  const markValue=document.getElementById('markValue');
+  function fillStudents(){
+    const selected=testSelect?.selectedOptions[0];
+    const sourceExam=selected?.dataset.sourceExam||'';
+    const std=selected?.dataset.standard;
+    if(!studentSelect)return;
+    studentSelect.innerHTML='<option value="">Select student</option>';
+    const eligible=sourceExam ? students.filter(s=>s.assignedExamId===sourceExam) : students.filter(s=>String(s.standard)===String(std));
+    eligible.forEach(s=>{
+      const o=document.createElement('option'); o.value=s._id; o.textContent=s.name+' · Std '+s.standard; studentSelect.appendChild(o);
+    });
+    if(markValue) markValue.max=selected?.dataset.total||'';
+  }
+  testSelect?.addEventListener('change',fillStudents);
+})();
+</script>
+<script src="/js/dashboard.js"></script>
+<script src="/js/pwa.js"></script><%- include('partials/footer') %>

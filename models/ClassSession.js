@@ -1,0 +1,1 @@
+const mongoose=require('mongoose'); const schema=new mongoose.Schema({title:String,standard:Number,subject:String,date:Date,startTime:String,endTime:String,batch:String,room:String,notes:String},{timestamps:true}); module.exports=mongoose.model('ClassSession',schema);

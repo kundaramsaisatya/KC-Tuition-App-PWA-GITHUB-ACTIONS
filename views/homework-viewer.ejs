@@ -1,0 +1,4 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111a35"><title><%=homework.title%> · Homework</title><link rel="stylesheet" href="/css/style.css"></head><body class="viewer-page no-copy">
+<header class="viewer-top"><div><strong><%=homework.title%></strong><span><%=homework.attachment.originalName%></span></div><a class="button secondary" href="/student#homework">Back</a></header>
+<main class="viewer-wrap"><div class="viewer-notice">Viewing only · Download, print and copy controls are disabled in this viewer.</div><div id="doc-viewer" class="doc-viewer" data-mime="<%=homework.attachment.mimeType%>" data-url="/homework/<%=homework._id%>/file" data-name="<%=homework.attachment.originalName%>"></div></main>
+<script src="/js/homework-viewer.js"></script></body></html>

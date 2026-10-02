@@ -1,0 +1,1 @@
+const mongoose=require('mongoose'); const schema=new mongoose.Schema({title:String,body:String,audience:{type:String,enum:['all','std9','std10'],default:'all'}},{timestamps:true}); module.exports=mongoose.model('Announcement',schema);

@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: kc-tuition-manager
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: TEACHER_USERNAME
+        sync: false
+      - key: TEACHER_PASSWORD
+        sync: false
+      - key: EXAM_MINUTES
+        value: "60"
