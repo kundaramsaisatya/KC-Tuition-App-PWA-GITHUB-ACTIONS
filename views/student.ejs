@@ -1,23 +1,6 @@
 <%- include('partials/header',{title:'Student Dashboard'}) %>
 <div class="app-shell">
-<aside class="sidebar"><div class="brand"><div class="brand-mark">KC</div><div><strong>Kundaram Chandrakala</strong><small>Student Portal</small></div></div><div class="nav-title">My learning</div>
-
-
-<nav class="side-nav">
-  <button data-section="overview">⌂ <span>Overview</span></button>
-  <button data-section="homework">▣ <span>Homework</span></button>
-  <button data-section="tests">✓ <span>Tests & Results</span></button>
-  <button data-section="attendance">◉ <span>Attendance</span></button>
-  <button data-section="classes">◷ <span>My Classes</span></button>
-  <button data-section="leave">✦ <span>Leave Requests</span></button>
-  <button data-section="updates">● <span>Announcements</span></button>
-
-  <button id="installAppBtn" type="button" data-install-app hidden>
-    📱 <span>Install App</span>
-  </button>
-</nav>
-
-<div class="sidebar-footer"><div class="teacher-mini"><small>Teacher</small><strong>Kundaram Chandrakala</strong></div></div></aside>
+<aside class="sidebar"><div class="brand"><div class="brand-mark">KC</div><div><strong>Kundaram Chandrakala</strong><small>Student Portal</small></div></div><div class="nav-title">My learning</div><nav class="side-nav"><button data-section="overview">⌂ <span>Overview</span></button><button data-section="homework">▣ <span>Homework</span></button><button data-section="tests">✓ <span>Tests & Results</span></button><button data-section="attendance">◉ <span>Attendance</span></button><button data-section="fees">₹ <span>Fees</span></button><button data-section="classes">◷ <span>My Classes</span></button><button data-section="leave">✦ <span>Leave Requests</span></button><button data-section="updates">● <span>Announcements</span></button></nav><div class="sidebar-footer"><div class="teacher-mini"><small>Teacher</small><strong>Kundaram Chandrakala</strong></div></div></aside>
 <main class="main"><header class="topbar"><div class="top-actions"><button class="mobile-menu" data-menu style="color:#000 !important;background:transparent;">☰</button><div class="topbar-title"><h1 data-page-title>Overview</h1><p data-page-desc>Your learning snapshot.</p></div></div><div class="top-actions"><div class="avatar"><%=student.name.slice(0,1)%></div><form method="post" action="/logout"><button class="secondary">Logout</button></form></div></header><div class="content">
 <section class="section active" data-panel="overview" data-title="Overview" data-desc="Your learning snapshot."><div class="grid two"><section class="card hero"><span class="pill">Std <%=student.standard%></span><h2>Welcome, <%=student.name%> 👋</h2><p>Keep your attendance, homework and tests on track. Your next actions are shown below.</p><div class="toolbar"><%if(student.assignedExamId){%><a class="button" href="/exam">Open <%=student.assignedExamTitle%></a><%}else{%><button class="secondary" disabled>No online test assigned</button><%}%><button class="secondary" data-section="homework">View homework</button></div></section><section class="card"><h3>Quick status</h3><div class="item-row item"><span>Homework</span><span class="pill <%=student.homeworkStatus==='done'?'success':'warning'%>"><%=student.homeworkStatus==='done'?'Done':'Pending'%></span></div><div class="item-row item"><span>Attendance</span><strong><%=attendance.filter(x=>x.status==='present'||x.status==='late').length%>/<%=attendance.length%></strong></div><div class="item-row item"><span>Announcements</span><strong><%=announcements.length%></strong></div></section></div><div class="grid cards" style="margin-top:16px"><div class="card stat"><div class="iconbox">✓</div><div class="stat-label">Attendance</div><div class="stat-value"><%=attendance.length?Math.round(attendance.filter(x=>x.status==='present'||x.status==='late').length/attendance.length*100):0%>%</div><div class="stat-foot">Based on recorded classes</div></div><div class="card stat"><div class="iconbox">▣</div><div class="stat-label">Homework</div><div class="stat-value"><%=student.homeworkStatus==='done'?'Done':'Pending'%></div><div class="stat-foot">Update after completing work</div></div><div class="card stat"><div class="iconbox">✓</div><div class="stat-label">Latest Result</div><div class="stat-value"><%=marks[0]?.marks??'-'%></div><div class="stat-foot"><%=marks[0]?.testId?.name||'No result yet'%></div></div><div class="card stat"><div class="iconbox">₹</div><div class="stat-label">Fee Status</div><div class="stat-value">updating soon</div><div class="stat-foot"><%=fees.filter(f=>!f.paid).length%> record(s)</div></div></div></section>
 
