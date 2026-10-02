@@ -4,7 +4,22 @@ const Student=require('./models/Student'),Activity=require('./models/Activity'),
 const {studentAuth,teacherAuth,logActivity}=require('./middleware/auth'); const questions=require('./data/questions'); const fs=require('fs'); const fsp=fs.promises; const multer=require('multer'); const recordingsDir=path.join(__dirname,'recordings'); const homeworkDir=path.join(__dirname,'storage','homework'); fs.mkdirSync(recordingsDir,{recursive:true}); fs.mkdirSync(homeworkDir,{recursive:true}); const testUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:5*1024*1024},fileFilter:(_,file,cb)=>{const ok=['application/json','text/plain','application/octet-stream'].includes(file.mimetype)||/\.json$/i.test(file.originalname||'');cb(ok?null:new Error('Only JSON test files are allowed'),ok)}}); const homeworkUpload=multer({storage:multer.diskStorage({destination:(_,__,cb)=>cb(null,homeworkDir),filename:(_,file,cb)=>cb(null,`${Date.now()}-${Math.random().toString(36).slice(2,9)}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g,'_')}`)}),limits:{fileSize:25*1024*1024},fileFilter:(_,file,cb)=>{const ok=['application/pdf','image/jpeg','image/png','image/webp','application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.mimetype);cb(ok?null:new Error('Only PDF, DOC, DOCX, JPG, PNG and WEBP files are allowed'),ok)}});
 
 const app=express(),PORT=process.env.PORT||3000,EXAM_MINUTES=Number(process.env.EXAM_MINUTES||60);app.set('view engine','ejs');app.set('views',path.join(__dirname,'views'));app.use(express.urlencoded({extended:true}));
-app.use(express.json());app.use(express.static(path.join(__dirname,'public')));app.use(rateLimit({windowMs:900000,max:500}));app.use(session({secret:process.env.SESSION_SECRET||'change-me',resave:false,saveUninitialized:false,store:MongoStore.create({mongoUrl:process.env.MONGODB_URI||'mongodb://127.0.0.1:27017/kundaram_tuition'}),cookie:{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',maxAge:21600000}}));app.post('/exam/recording',studentAuth,express.raw({type:['video/webm','video/webm;codecs=vp8','video/webm;codecs=vp9'],limit:'500mb'}),async(req,res)=>{try{if(!req.student.examStartedAt||req.student.examSubmittedAt)return res.status(400).json({error:'Exam is not active'});if(!req.body||!req.body.length)return res.status(400).json({error:'Empty recording'});const dir=path.join(recordingsDir,String(req.student._id));await fsp.mkdir(dir,{recursive:true});const fileName=`${Date.now()}-${req.student.paperCode}.webm`;const filePath=path.join(dir,fileName);await fsp.writeFile(filePath,req.body);const rec=await ExamRecording.create({studentId:req.student._id,fileName,filePath,startedAt:req.student.examStartedAt,size:req.body.length});await logActivity(req,'exam_video_uploaded',`Recording ${rec._id} uploaded (${req.body.length} bytes)`);res.json({ok:true,recordingId:rec._id});}catch(e){console.error(e);res.status(500).json({error:'Recording upload failed'});}});
+app.use(express.json());app.use(express.static(path.join(__dirname,'public')));app.use(rateLimit({windowMs:900000,max:500}));
+app.set('trust proxy', 1);
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'kc-tuition-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  proxy: true,
+  cookie: {
+    secure: true,
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 * 24 * 7
+  }
+}));
+app.post('/exam/recording',studentAuth,express.raw({type:['video/webm','video/webm;codecs=vp8','video/webm;codecs=vp9'],limit:'500mb'}),async(req,res)=>{try{if(!req.student.examStartedAt||req.student.examSubmittedAt)return res.status(400).json({error:'Exam is not active'});if(!req.body||!req.body.length)return res.status(400).json({error:'Empty recording'});const dir=path.join(recordingsDir,String(req.student._id));await fsp.mkdir(dir,{recursive:true});const fileName=`${Date.now()}-${req.student.paperCode}.webm`;const filePath=path.join(dir,fileName);await fsp.writeFile(filePath,req.body);const rec=await ExamRecording.create({studentId:req.student._id,fileName,filePath,startedAt:req.student.examStartedAt,size:req.body.length});await logActivity(req,'exam_video_uploaded',`Recording ${rec._id} uploaded (${req.body.length} bytes)`);res.json({ok:true,recordingId:rec._id});}catch(e){console.error(e);res.status(500).json({error:'Recording upload failed'});}});
 app.use((req,res,next)=>{res.locals.teacherName=process.env.TEACHER_NAME||'Kundaram Chandrakala';next();});
 async function ensureDefaultStudents(){
   const rows=[
