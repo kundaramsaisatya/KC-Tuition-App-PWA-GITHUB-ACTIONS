@@ -1,25 +1,40 @@
-(function () {
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('/sw.js').catch(function () {});
-    });
+let deferredPrompt = null;
+
+const installBtn = document.getElementById("installAppBtn");
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+
+  deferredPrompt = event;
+
+  if (installBtn) {
+    installBtn.style.display = "flex";
   }
+});
 
-  let deferredPrompt = null;
-  window.addEventListener('beforeinstallprompt', function (event) {
-    event.preventDefault();
-    deferredPrompt = event;
-    const buttons = document.querySelectorAll('[data-install-app]');
-    buttons.forEach(function (button) { button.hidden = false; });
-  });
+if (installBtn) {
+  installBtn.addEventListener("click", async () => {
+    if (!deferredPrompt) {
+      alert("Install is not available right now. Please use Chrome and make sure the site is opened over HTTPS.");
+      return;
+    }
 
-  document.addEventListener('click', function (event) {
-    const button = event.target.closest('[data-install-app]');
-    if (!button || !deferredPrompt) return;
     deferredPrompt.prompt();
-    deferredPrompt.userChoice.finally(function () {
-      deferredPrompt = null;
-      button.hidden = true;
-    });
+
+    const result = await deferredPrompt.userChoice;
+
+    if (result.outcome === "accepted") {
+      installBtn.style.display = "none";
+    }
+
+    deferredPrompt = null;
   });
-})();
+}
+
+window.addEventListener("appinstalled", () => {
+  deferredPrompt = null;
+
+  if (installBtn) {
+    installBtn.style.display = "none";
+  }
+});
