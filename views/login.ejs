@@ -3,7 +3,6 @@
 <div class="auth">
 
   <div class="auth-visual">
-
     <div class="brand">
       <div class="brand-mark">KC</div>
       <div>
@@ -20,7 +19,6 @@
     </p>
 
     <div class="quick-grid">
-
       <div class="quick">
         <b>Tests</b>
         <span>Online assessments</span>
@@ -40,9 +38,7 @@
         <b>Results</b>
         <span>Follow progress</span>
       </div>
-
     </div>
-
   </div>
 
 
@@ -59,11 +55,8 @@
       </p>
 
       <% if(error){ %>
-        <div class="error">
-          <%= error %>
-        </div>
+        <div class="error"><%= error %></div>
       <% } %>
-
 
       <label>
         Username
@@ -73,7 +66,6 @@
           required
         >
       </label>
-
 
       <label>
         Password
@@ -85,7 +77,6 @@
         >
       </label>
 
-
       <button
         type="submit"
         style="width:100%;margin-top:14px"
@@ -93,37 +84,7 @@
         Sign in
       </button>
 
-
-      <!-- INSTALL APP BUTTON -->
-      <!-- type="button" is important.
-           Otherwise it submits the login form. -->
-
-      <button
-        type="button"
-        data-install-app
-        hidden
-        style="
-          position:fixed;
-          right:14px;
-          top:14px;
-          z-index:9999;
-          border:0;
-          border-radius:10px;
-          padding:10px 14px;
-          background:#111a35;
-          color:#fff;
-          box-shadow:0 4px 14px rgba(0,0,0,.15);
-          cursor:pointer;
-        "
-      >
-        Install App
-      </button>
-
-
-      <p
-        class="small"
-        style="margin-top:18px"
-      >
+      <p class="small" style="margin-top:18px">
         Need help? Contact Kundaram Chandrakala.
       </p>
 
@@ -133,6 +94,28 @@
 
 </div>
 
+
+<!-- INSTALL APP BUTTON IS OUTSIDE THE LOGIN FORM -->
+<button
+  type="button"
+  data-install-app
+  hidden
+  style="
+    position:fixed;
+    right:14px;
+    top:14px;
+    z-index:9999;
+    border:0;
+    border-radius:10px;
+    padding:10px 14px;
+    background:#111a35;
+    color:#fff;
+    box-shadow:0 4px 14px rgba(0,0,0,.15);
+    cursor:pointer;
+  "
+>
+  Install App
+</button>
 
 <script src="/js/pwa.js"></script>
 
