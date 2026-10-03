@@ -91,7 +91,38 @@ function publicQuestion(q){if(!q)return null;const out={id:q.id,type:q.type,text
 app.get('/',(req,res)=>res.redirect(req.session.studentId?'/student':'/login'));app.get('/login',(req,res)=>res.render('login',{error:req.query.error}));
 app.post('/login',async(req,res)=>{const s=await Student.findOne({username:req.body.username});if(!s||s.status!=='active'||!(await bcrypt.compare(req.body.password,s.passwordHash)))return res.render('login',{error:'Invalid username or password'});req.session.regenerate(async err=>{if(err)return res.status(500).send('Login error');req.session.studentId=s._id.toString();s.activeSessionId=req.sessionID;s.lastLoginAt=new Date();await s.save();req.student=s;await logActivity(req,'login');res.redirect('/student');});});
 app.post('/logout',studentAuth,async(req,res)=>{await logActivity(req,'logout');await Student.findByIdAndUpdate(req.student._id,{activeSessionId:null});req.session.destroy(()=>res.redirect('/login'))});
-app.get('/student',studentAuth,async(req,res)=>{const todayStart=indiaStartOfDay();const [attendance,fees,leaves,tests,marks,announcements,homeworks,classes]=await Promise.all([Attendance.find({studentId:req.student._id}).sort({date:-1}).limit(100).lean(),Fee.find({studentId:req.student._id}).sort({dueDate:-1}).limit(24).lean(),LeaveRequest.find({studentId:req.student._id}).sort({createdAt:-1}).limit(10).lean(),Test.find({$or:[{standard:req.student.standard,sourceExamId:null},{standard:0,sourceExamId:null},{sourceExamId:req.student.assignedExamId}]}).sort({date:-1}).limit(20).lean(),Mark.find({studentId:req.student._id,published:true}).populate('testId').sort({createdAt:-1}).limit(10).lean(),Announcement.find({$or:[{audience:'all'},{audience:req.student.standard===9?'std9':'std10'}]}).sort({createdAt:-1}).limit(10).lean(),Homework.find({standard:req.student.standard}).sort({dueDate:-1}).limit(10).lean(),ClassSession.find({standard:req.student.standard,date:{$gte:todayStart}}).sort({date:1}).limit(20).lean()]);res.render('student',{student:req.student,attendance,fees,leaves,tests,marks,announcements,homeworks,classes,formatIndiaDate,formatIndiaDateTime});});
+app.get('/student',studentAuth,async(req,res)=>{
+  const todayStart=indiaStartOfDay();
+  const [attendance,fees,leaves,tests,marks,announcements,homeworks,classes]=await Promise.all([
+    Attendance.find({studentId:req.student._id}).sort({date:-1}).limit(100).lean(),
+    Fee.find({studentId:req.student._id}).sort({dueDate:-1}).limit(24).lean(),
+    LeaveRequest.find({studentId:req.student._id}).sort({createdAt:-1}).limit(10).lean(),
+    Test.find({$or:[{standard:req.student.standard,sourceExamId:null},{standard:0,sourceExamId:null},{sourceExamId:req.student.assignedExamId}]}).sort({date:-1}).limit(20).lean(),
+    Mark.find({studentId:req.student._id,published:true}).populate('testId').sort({createdAt:-1}).limit(50).lean(),
+    Announcement.find({$or:[{audience:'all'},{audience:req.student.standard===9?'std9':'std10'}]}).sort({createdAt:-1}).limit(10).lean(),
+    Homework.find({standard:req.student.standard}).sort({dueDate:-1}).limit(30).lean(),
+    ClassSession.find({standard:req.student.standard,date:{$gte:todayStart}}).sort({date:1}).limit(20).lean()
+  ]);
+  const reportMonth=String(req.query.month||indiaDateKey().slice(0,7));
+  const monthMatch=/^\d{4}-\d{2}$/.test(reportMonth)?reportMonth:indiaDateKey().slice(0,7);
+  const [year,month]=monthMatch.split('-').map(Number);
+  const monthStart=new Date(`${monthMatch}-01T00:00:00+05:30`);
+  const nextMonth=month===12?`${year+1}-01-01T00:00:00+05:30`:`${year}-${String(month+1).padStart(2,'0')}-01T00:00:00+05:30`;
+  const monthEnd=new Date(new Date(nextMonth).getTime()-1);
+  const monthAttendance=attendance.filter(a=>{const d=new Date(a.date);return d>=monthStart&&d<=monthEnd;});
+  const monthMarks=marks.filter(m=>m.testId?.date&&new Date(m.testId.date)>=monthStart&&new Date(m.testId.date)<=monthEnd);
+  const monthHomework=homeworks.filter(h=>h.createdAt&&new Date(h.createdAt)>=monthStart&&new Date(h.createdAt)<=monthEnd);
+  const present=monthAttendance.filter(a=>a.status==='present').length;
+  const late=monthAttendance.filter(a=>a.status==='late').length;
+  const absent=monthAttendance.filter(a=>a.status==='absent').length;
+  const leave=monthAttendance.filter(a=>a.status==='leave').length;
+  const attendanceTotal=monthAttendance.length;
+  const attendancePercent=attendanceTotal?Math.round((present+late)/attendanceTotal*100):0;
+  const markRows=monthMarks.map(m=>({name:m.testId?.name||'Test',marks:Number(m.marks||0),total:Number(m.testId?.totalMarks||0),percent:m.testId?.totalMarks?Math.round(Number(m.marks||0)/Number(m.testId.totalMarks)*100):0}));
+  const markAverage=markRows.length?Math.round(markRows.reduce((a,b)=>a+b.percent,0)/markRows.length):0;
+  const upcomingClasses=classes.filter(c=>classStatus(c)==='upcoming'||classStatus(c)==='ongoing').length;
+  res.render('student',{student:req.student,attendance,fees,leaves,tests,marks,announcements,homeworks,classes,formatIndiaDate,formatIndiaDateTime,reportMonth:monthMatch,report:{present,late,absent,leave,attendanceTotal,attendancePercent,markRows,markAverage,homeworkAssigned:monthHomework.length,homeworkCurrentStatus:req.student.homeworkStatus,upcomingClasses}});
+});
 app.get('/exam',studentAuth,async(req,res)=>{const set=getExamSet(req.student);if(!set)return res.redirect('/student#tests');const st=examState(req.student);if(st.expired){req.student.examSubmittedAt=new Date();await req.student.save();}res.render('exam',{set,student:req.student,state:examState(req.student),examMinutes:set.duration});});
 async function startExam(req,res){const set=getExamSet(req.student);if(!set)return res.redirect('/student#tests');if(req.student.examStartedAt&&!req.student.examSubmittedAt)return res.redirect('/exam');if(req.student.examSubmittedAt)return res.redirect('/exam');req.student.examStartedAt=new Date();req.student.examDeadline=new Date(Date.now()+set.duration*60000);req.student.examOrder=shuffle(set.questions.map((_,i)=>i));req.student.examAnswers=new Map();req.student.examQuestionIndex=0;req.student.examSubmittedAt=null;await req.student.save();await logActivity(req,'exam_start',`${set.title} · ${set.duration} minutes`);res.redirect('/exam');} app.get('/exam/start',studentAuth,startExam);app.post('/exam/start',studentAuth,startExam);
 app.get('/exam/question',studentAuth,async(req,res)=>{const st=examState(req.student),set=getExamSet(req.student);if(!set||!st.started||st.submitted||st.expired)return res.json({submitted:true});const i=Math.max(0,Math.min(set.questions.length-1,Number(req.query.index)||0)),qi=req.student.examOrder[i];res.json({index:i,total:set.questions.length,question:publicQuestion(set.questions[qi]),answer:req.student.examAnswers?.get(String(qi))||'',remaining:st.remaining});});
