@@ -173,8 +173,8 @@
         </form>
       </section>
 
-      <section class="section" data-panel="tests" data-title="Tests" data-desc="Manage online and offline tests.">
-        <div class="section-toolbar"><div><span class="eyebrow">TESTS</span><h2>Tests</h2><p>Create online tests from JSON or record tests conducted offline.</p></div></div>
+      <section class="section" data-panel="tests" data-title="Tests" data-desc="Manage online tests and offline/manual tests.">
+        <div class="section-toolbar"><div><span class="eyebrow">TESTS</span><h2>Tests</h2><p>Manage online tests and record results for tests conducted offline.</p></div></div>
         <div class="grid two">
           <section class="card import-card">
             <div class="import-icon">↑</div><h3>Online test</h3><p>Upload a JSON file containing the individual student papers.</p>
@@ -182,37 +182,49 @@
             <form method="post" action="/teacher/exam/import" enctype="multipart/form-data">
               <label class="file-drop">Choose test JSON<input name="testFile" type="file" accept="application/json,.json" required></label>
               <div class="notice">Each paper: 10 Direct → Indirect + 10 Grammar questions. Each Grammar question has 4 subquestions.</div>
-              <button>Import & assign online test</button>
+              <button>Import & assign test</button>
             </form>
           </section>
           <section class="card">
-            <h3>Offline / manual test</h3><p>Create a record for a test conducted on paper or offline.</p>
+            <div class="section-head"><div><h3>Online tests</h3><p>Tests assigned through individual online papers.</p></div></div>
+            <% if(!exams.length){ %><div class="empty">No online tests imported yet.</div><% } else { %>
+              <div class="test-list"><% exams.forEach(function(e){ %><div class="test-card"><div class="test-icon">▣</div><div class="student-main"><strong><%= e.title %></strong><span class="small">Online test · <%= e.paperCount %> papers · <%= e.duration %> min</span></div><span class="pill success">Assigned</span><form method="post" action="/teacher/test/<%= e._id %>/delete" onsubmit="return confirm('Delete this online test, its marks and student assignments?')"><button class="danger small-button">Delete</button></form></div><% }); %></div>
+            <% } %>
+          </section>
+        </div>
+        <div class="grid two" style="margin-top:16px">
+          <section class="card">
+            <div class="section-head"><div><span class="eyebrow">OFFLINE / MANUAL</span><h3>Create offline test</h3><p>For tests conducted on paper or in class. PDF is optional.</p></div></div>
             <form method="post" action="/teacher/offline-test/create" enctype="multipart/form-data">
-              <input name="title" placeholder="Test name" required>
-              <div class="form-grid three">
-                <label>Standard<select name="standard" required><option value="9">Std 9</option><option value="10">Std 10</option><option value="0">All students</option></select></label>
-                <label>Date conducted<input name="testDate" type="date" required></label>
-                <label>Total marks<input name="totalMarks" type="number" min="1" required placeholder="50"></label>
+              <input name="name" placeholder="Test name" required>
+              <div class="form-grid">
+                <input name="subject" placeholder="Subject">
+                <select name="standard" required><option value="">Select standard</option><option value="all">All students</option><option value="9">Std 9</option><option value="10">Std 10</option></select>
               </div>
-              <input name="subject" placeholder="Subject (optional)">
+              <div class="form-grid">
+                <label>Date conducted<input name="date" type="date" required></label>
+                <label>Total marks<input name="totalMarks" type="number" min="1" required></label>
+              </div>
               <label class="file-drop">Question paper PDF (optional)<input name="questionPaper" type="file" accept="application/pdf,.pdf"></label>
+              <textarea name="notes" placeholder="Optional notes"></textarea>
               <button>Create offline test</button>
             </form>
           </section>
+          <section class="card">
+            <div class="section-head"><div><h3>Offline tests</h3><p>Use the Marks section to enter each student's score.</p></div></div>
+            <% const offlineTests=tests.filter(function(t){return !t.sourceExamId;}); %>
+            <% if(!offlineTests.length){ %><div class="empty">No offline tests created yet.</div><% } else { %>
+              <div class="test-list"><% offlineTests.slice(0,20).forEach(function(t){ %><div class="test-card"><div class="test-icon">✓</div><div class="student-main"><strong><%= t.name %></strong><span class="small">Offline · <%= t.standard===0?'All students':'Std '+t.standard %> · <%= t.totalMarks %> marks · <%= t.date?new Date(t.date).toLocaleDateString():'-' %></span></div><div class="right-stack"><% if(t.questionPaper?.filePath){ %><a class="button secondary small-button" href="/teacher/test/<%= t._id %>/paper" target="_blank">View PDF</a><% } %><form method="post" action="/teacher/test/<%= t._id %>/delete" onsubmit="return confirm('Delete this offline test and its marks?')"><button class="danger small-button">Delete</button></form></div></div><% }); %></div>
+            <% } %>
+          </section>
         </div>
-        <section class="card">
-          <div class="section-head"><div><h3>Tests</h3><p>Online tests and offline/manual tests are both available for marking.</p></div></div>
-          <% if(!tests.length){ %><div class="empty">No tests yet.</div><% } else { %>
-            <div class="test-list"><% tests.forEach(function(t){ %><div class="test-card"><div class="test-icon"><%= t.type==='offline'?'▤':'▣' %></div><div class="student-main"><strong><%= t.name %></strong><span class="small"><%= t.type==='offline'?'Offline test':'Online test' %> · <%= t.standard===0?'All students':'Std '+t.standard %> · <%= t.totalMarks %> marks<% if(t.type==='offline' && t.date){ %> · <%= new Date(t.date).toLocaleDateString() %><% } %></span></div><div class="recording-actions"><% if(t.type==='offline' && t.questionPaper){ %><a class="button secondary" href="/teacher/offline-test/<%= t._id %>/file" target="_blank">Paper</a><% } %><a class="button secondary" href="#marks">Enter marks</a><form method="post" action="/teacher/test/<%= t._id %>/delete" onsubmit="return confirm('Delete this test and its marks?')"><button class="danger small-button">Delete</button></form></div></div><% }); %></div>
-          <% } %>
-        </section>
       </section>
 
       <section class="section" data-panel="marks" data-title="Marks" data-desc="Enter and publish marks to one student at a time.">
         <div class="section-toolbar"><div><span class="eyebrow">RESULTS</span><h2>Individual marks</h2><p>Save a student's score and publish it to their dashboard.</p></div></div>
         <section class="card mark-entry-card">
           <form method="post" action="/teacher/mark" id="markForm">
-            <div class="form-grid three"><label>Test<select name="testId" id="markTest" required><option value="">Select test</option><% tests.forEach(function(t){ %><option value="<%= t._id %>" data-standard="<%= t.standard %>" data-total="<%= t.totalMarks %>" data-source-exam="<%= t.sourceExamId||'' %>"><%= t.name %> · <%= t.type==='offline' ? 'Offline' : 'Online' %> · <%= t.standard===0 ? 'All students' : 'Std '+t.standard %> · <%= t.totalMarks %> marks</option><% }); %></select></label><label>Student<select name="studentId" id="markStudent" required><option value="">Select test first</option></select></label><label>Marks<input name="marks" id="markValue" type="number" min="0" required></label></div>
+            <div class="form-grid three"><label>Test<select name="testId" id="markTest" required><option value="">Select test</option><% tests.forEach(function(t){ %><option value="<%= t._id %>" data-standard="<%= t.standard %>" data-total="<%= t.totalMarks %>" data-source-exam="<%= t.sourceExamId||'' %>"><%= t.name %> · <%= t.sourceExamId ? 'Online' : (t.type==='offline' ? 'Offline · '+(t.standard===0?'All students':'Std '+t.standard) : 'Standard '+t.standard) %> · <%= t.totalMarks %> marks</option><% }); %></select></label><label>Student<select name="studentId" id="markStudent" required><option value="">Select test first</option></select></label><label>Marks<input name="marks" id="markValue" type="number" min="0" required></label></div>
             <label>Remark<input name="remark" placeholder="Optional feedback for the student"></label>
             <label class="publish-check"><input type="checkbox" name="published" value="true" checked> Publish this result to the student's dashboard</label>
             <div class="mark-actions"><button>Save mark</button><button type="reset" class="secondary">Clear</button></div>
@@ -253,15 +265,7 @@
   </main>
 </div>
 
-<div class="bottom-nav teacher-bottom">
-  <button data-section="overview">⌂<br><span>Home</span></button>
-  <button data-section="students">◉<br><span>Students</span></button>
-  <button data-section="attendance">✓<br><span>Attend</span></button>
-  <button data-section="tests">▣<br><span>Tests</span></button>
-  <button data-section="marks">★<br><span>Marks</span></button>
-  <button data-section="fees">₹<br><span>Fees</span></button>
-  <button data-menu>☰<br><span>More</span></button>
-</div>
+
 
 <script>
 (function(){
@@ -289,7 +293,7 @@
   statusSelects.forEach(s=>s.addEventListener('change',updateStatusStyles));
   updateStatusStyles();
 
-  const tests=<%- JSON.stringify(tests.map(function(t){return {_id:String(t._id),standard:Number(t.standard),totalMarks:Number(t.totalMarks||0),sourceExamId:t.sourceExamId?String(t.sourceExamId):''}})) %>;
+  const tests=<%- JSON.stringify(tests.map(function(t){return {_id:String(t._id),standard:Number(t.standard||0),totalMarks:Number(t.totalMarks||0),sourceExamId:t.sourceExamId?String(t.sourceExamId):'',type:t.type||'online'}})) %>;
   const students=<%- JSON.stringify(students.filter(function(s){return s.status==='active';}).map(function(s){return {_id:String(s._id),name:s.name,standard:Number(s.standard),assignedExamId:s.assignedExamId?String(s.assignedExamId):''}})) %>;
   const testSelect=document.getElementById('markTest');
   const studentSelect=document.getElementById('markStudent');
@@ -300,7 +304,7 @@
     const std=selected?.dataset.standard;
     if(!studentSelect)return;
     studentSelect.innerHTML='<option value="">Select student</option>';
-    const eligible=sourceExam ? students.filter(s=>s.assignedExamId===sourceExam) : (String(std)==='0' ? students : students.filter(s=>String(s.standard)===String(std)));
+    const eligible=sourceExam ? students.filter(s=>s.assignedExamId===sourceExam) : String(std)==='0' ? students : students.filter(s=>String(s.standard)===String(std));
     eligible.forEach(s=>{
       const o=document.createElement('option'); o.value=s._id; o.textContent=s.name+' · Std '+s.standard; studentSelect.appendChild(o);
     });
