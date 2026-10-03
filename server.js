@@ -87,9 +87,60 @@ async function ensureDefaultStudents(){
 }
 
 function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function getExamSet(s){if(Array.isArray(s.assignedExamQuestions)&&s.assignedExamQuestions.length){return {title:s.assignedExamTitle||'Online Grammar Test',questions:s.assignedExamQuestions,duration:Number(s.assignedExamDuration||EXAM_MINUTES)}}return null;}
-function examState(s){const started=!!s.examStartedAt,submitted=!!s.examSubmittedAt,expired=started&&!submitted&&s.examDeadline&&new Date(s.examDeadline)<=new Date();return{started,submitted,expired,remaining:started&&!submitted?Math.max(0,new Date(s.examDeadline)-Date.now()):0};}
-function publicQuestion(q){if(!q)return null;const out={id:q.id,type:q.type,text:q.text,instruction:q.instruction,marks:q.marks,difficulty:q.difficulty};if(Array.isArray(q.subquestions))out.subquestions=q.subquestions.map(x=>({type:x.type,prompt:x.prompt,marks:x.marks}));return out;}
+
+function normalizeExamQuestion(raw,index){
+  const q=(raw&&typeof raw==='object')?{...raw}:{question:String(raw||'')};
+  const text=String(q.text??q.question??q.prompt??q.statement??'').trim();
+  if(!text)throw new Error(`Question ${index+1} has no question/text`);
+  q.text=text;
+  q.id=String(q.id||`q-${index+1}`);
+  q.type=String(q.type||'short_answer');
+  const marks=Number(q.marks);
+  q.marks=Number.isFinite(marks)&&marks>0?marks:1;
+  if(q.instruction!=null)q.instruction=String(q.instruction);
+  if(Array.isArray(q.options))q.options=q.options.map(x=>String(x));
+  if(Array.isArray(q.subquestions)){
+    q.subquestions=q.subquestions.map(sq=>({
+      ...sq,
+      type:String(sq?.type||'question'),
+      prompt:String(sq?.prompt??sq?.question??'').trim(),
+      marks:Number.isFinite(Number(sq?.marks))&&Number(sq.marks)>0?Number(sq.marks):1
+    }));
+  }
+  return q;
+}
+
+function getExamSet(s){
+  if(Array.isArray(s.assignedExamQuestions)&&s.assignedExamQuestions.length){
+    return {
+      title:s.assignedExamTitle||'Online Test',
+      subject:s.assignedExamSubject||'',
+      questions:s.assignedExamQuestions,
+      duration:Number(s.assignedExamDuration||EXAM_MINUTES)
+    };
+  }
+  return null;
+}
+function examState(s){
+  const started=!!s.examStartedAt,submitted=!!s.examSubmittedAt,expired=started&&!submitted&&s.examDeadline&&new Date(s.examDeadline)<=new Date();
+  return{started,submitted,expired,remaining:started&&!submitted?Math.max(0,new Date(s.examDeadline)-Date.now()):0};
+}
+function publicQuestion(q){
+  if(!q)return null;
+  const out={
+    id:q.id,
+    type:q.type,
+    text:String(q.text??q.question??q.prompt??''),
+    instruction:q.instruction,
+    marks:q.marks,
+    difficulty:q.difficulty
+  };
+  if(Array.isArray(q.options))out.options=q.options;
+  if(Array.isArray(q.subquestions)){
+    out.subquestions=q.subquestions.map(x=>({type:x.type,prompt:x.prompt,marks:x.marks}));
+  }
+  return out;
+}
 app.get('/',(req,res)=>res.redirect(req.session.studentId?'/student':'/login'));app.get('/login',(req,res)=>res.render('login',{error:req.query.error}));
 app.post('/login',async(req,res)=>{const s=await Student.findOne({username:req.body.username});if(!s||s.status!=='active'||!(await bcrypt.compare(req.body.password,s.passwordHash)))return res.render('login',{error:'Invalid username or password'});req.session.regenerate(async err=>{if(err)return res.status(500).send('Login error');req.session.studentId=s._id.toString();s.activeSessionId=req.sessionID;s.lastLoginAt=new Date();await s.save();req.student=s;await logActivity(req,'login');res.redirect('/student');});});
 app.post('/logout',studentAuth,async(req,res)=>{await logActivity(req,'logout');await Student.findByIdAndUpdate(req.student._id,{activeSessionId:null});req.session.destroy(()=>res.redirect('/login'))});
@@ -149,43 +200,164 @@ app.get('/teacher/test/:id/file',teacherAuth,async(req,res)=>{
 app.post('/teacher/exam/import',teacherAuth,testUpload.single('testFile'),async(req,res)=>{
   try{
     if(!req.file)return res.redirect('/teacher#tests');
+
     const data=JSON.parse(req.file.buffer.toString('utf8'));
-    if(!data.title||(!Array.isArray(data.papers)&&(!data.papers||typeof data.papers!=='object')))throw new Error('Invalid test file: title and papers are required');
-    const papers=Array.isArray(data.papers)?data.papers:Object.values(data.papers);
-    if(!papers.length)throw new Error('Invalid test file: no papers found');
+    if(!data||typeof data!=='object')throw new Error('Invalid JSON test file');
+
+    const title=String(data.title||'').trim();
+    if(!title)throw new Error('Test title is required');
+
     const duration=Number(data.duration||60);
-    if(!Number.isFinite(duration)||duration<5||duration>240)throw new Error('Invalid duration');
-    const assigned=[];
-    for(const paper of papers){
-      if(!paper.studentUsername||![9,10].includes(Number(paper.standard))||!Array.isArray(paper.questions)||paper.questions.length!==20)throw new Error('Each paper needs studentUsername, standard and exactly 20 questions');
-      const direct=paper.questions.filter(q=>q.type==='direct_to_indirect').length;
-      const grammar=paper.questions.filter(q=>q.type==='grammar_mix').length;
-      if(direct!==10||grammar!==10)throw new Error(`Paper ${paper.studentUsername} must contain 10 direct-to-indirect and 10 grammar questions`);
-      if(paper.questions.some(q=>q.type==='grammar_mix'&&(!Array.isArray(q.subquestions)||q.subquestions.length!==4)))throw new Error(`Grammar questions for ${paper.studentUsername} must have 4 subquestions`);
-      const student=await Student.findOne({username:String(paper.studentUsername).trim(),standard:Number(paper.standard)});
-      if(!student)throw new Error(`Student not found: ${paper.studentUsername}`);
-      if(student.examStartedAt&&!student.examSubmittedAt)throw new Error(`${student.name} currently has an active exam`);
-      assigned.push(student);
+    if(!Number.isFinite(duration)||duration<1||duration>600)throw new Error('Duration must be between 1 and 600 minutes');
+
+    const mode=String(req.body.assignmentMode||'common');
+    const requestedStandard=Number(req.body.standard);
+    const jsonStandard=Number(data.standard);
+    const selectedStandard=[0,9,10].includes(requestedStandard)
+      ? requestedStandard
+      : ([0,9,10].includes(jsonStandard)?jsonStandard:0);
+
+    let questionLimit=Number(req.body.questionLimit);
+    if(!Number.isFinite(questionLimit))questionLimit=Number(data.questionLimit||0);
+    if(!Number.isFinite(questionLimit)||questionLimit<0)throw new Error('Question limit must be 0 or a positive number');
+    questionLimit=Math.floor(questionLimit);
+
+    const subject=String(req.body.subject||data.subject||'General').trim()||'General';
+
+    const rawPapers=Array.isArray(data.papers)
+      ? data.papers
+      : (data.papers&&typeof data.papers==='object'?Object.values(data.papers):[]);
+
+    const assignments=[];
+
+    if(mode==='individual'&&rawPapers.length){
+      for(const paper of rawPapers){
+        const username=String(paper.studentUsername||paper.username||'').trim();
+        const standard=Number(paper.standard);
+
+        if(!username||![9,10].includes(standard)){
+          throw new Error('Each individual paper needs studentUsername and standard');
+        }
+
+        if(selectedStandard!==0&&standard!==selectedStandard)continue;
+
+        if(!Array.isArray(paper.questions)||!paper.questions.length){
+          throw new Error(`No questions found for ${username}`);
+        }
+
+        let qs=paper.questions.map((q,i)=>normalizeExamQuestion(q,i));
+        if(questionLimit>0)qs=qs.slice(0,questionLimit);
+        if(!qs.length)throw new Error(`No questions remain for ${username}`);
+
+        const student=await Student.findOne({username,standard,status:'active'});
+        if(!student)throw new Error(`Student not found or inactive: ${username}`);
+        if(student.examStartedAt&&!student.examSubmittedAt){
+          throw new Error(`${student.name} currently has an active exam`);
+        }
+
+        assignments.push({student,questions:qs});
+      }
+
+      if(!assignments.length)throw new Error('No student papers matched the selected standard');
+    }else{
+      let commonQuestions=Array.isArray(data.questions)?data.questions:null;
+
+      // A paper-based JSON can also be used in common mode:
+      // the first paper becomes the shared question set.
+      if(!commonQuestions&&rawPapers.length&&Array.isArray(rawPapers[0].questions)){
+        commonQuestions=rawPapers[0].questions;
+      }
+
+      if(!commonQuestions||!commonQuestions.length){
+        throw new Error('Common test JSON needs a top-level questions array');
+      }
+
+      let qs=commonQuestions.map((q,i)=>normalizeExamQuestion(q,i));
+      if(questionLimit>0)qs=qs.slice(0,questionLimit);
+      if(!qs.length)throw new Error('No questions remain after applying the question limit');
+
+      const filter={status:'active'};
+      if(selectedStandard!==0)filter.standard=selectedStandard;
+
+      const students=await Student.find(filter).sort({standard:1,name:1});
+      if(!students.length){
+        throw new Error(selectedStandard===0?'No active students found':`No active students found in Std ${selectedStandard}`);
+      }
+
+      for(const student of students){
+        if(student.examStartedAt&&!student.examSubmittedAt){
+          throw new Error(`${student.name} currently has an active exam`);
+        }
+        assignments.push({
+          student,
+          questions:JSON.parse(JSON.stringify(qs))
+        });
+      }
     }
-    const title=String(data.title).trim();
+
+    // Re-importing the same title replaces the previous online test cleanly.
     const previousExams=await Exam.find({title}).lean();
     for(const oldExam of previousExams){
       const oldTests=await Test.find({sourceExamId:oldExam._id}).select('_id').lean();
       const oldTestIds=oldTests.map(t=>t._id);
       if(oldTestIds.length)await Mark.deleteMany({testId:{$in:oldTestIds}});
       await Test.deleteMany({sourceExamId:oldExam._id});
-      await Student.updateMany({assignedExamId:oldExam._id},{$set:{assignedExamId:null,assignedExamTitle:'',assignedExamDuration:null,assignedExamQuestions:[],examStartedAt:null,examDeadline:null,examSubmittedAt:null,examOrder:[],examQuestionIndex:0},$unset:{examAnswers:1}});
+      await Student.updateMany(
+        {assignedExamId:oldExam._id},
+        {$set:{
+          assignedExamId:null,
+          assignedExamTitle:'',
+          assignedExamSubject:'',
+          assignedExamDuration:null,
+          assignedExamQuestions:[],
+          examStartedAt:null,
+          examDeadline:null,
+          examSubmittedAt:null,
+          examOrder:[],
+          examQuestionIndex:0
+        },$unset:{examAnswers:1}}
+      );
       await Exam.deleteOne({_id:oldExam._id});
     }
-    const exam=await Exam.create({title,standard:Number(papers[0].standard),duration,paperCount:papers.length,sourceFile:req.file.originalname,assignedStudents:assigned.map(s=>s._id)});
-    const totalMarks=Number(data.totalMarks||50);
-    await Test.create({name:title,subject:String(data.subject||'English Grammar'),standard:0,date:new Date(),totalMarks,notes:`Imported online exam · ${duration} minutes`,sourceExamId:exam._id});
-    for(const paper of papers){
-      const student=assigned.find(s=>s.username===String(paper.studentUsername).trim());
+
+    const examStandard=mode==='individual'
+      ?(assignments.every(a=>a.student.standard===assignments[0].student.standard)
+        ?assignments[0].student.standard:0)
+      :selectedStandard;
+
+    const firstQuestions=assignments[0].questions;
+    const suppliedTotal=Number(data.totalMarks);
+    const calculatedTotal=firstQuestions.reduce((sum,q)=>sum+Number(q.marks||1),0);
+    const totalMarks=Number.isFinite(suppliedTotal)&&suppliedTotal>0
+      ?suppliedTotal:calculatedTotal;
+
+    const exam=await Exam.create({
+      title,
+      subject,
+      standard:examStandard,
+      duration,
+      sourceFile:req.file.originalname,
+      paperCount:assignments.length,
+      assignedStudents:assignments.map(a=>a.student._id)
+    });
+
+    await Test.create({
+      name:title,
+      subject,
+      standard:examStandard,
+      date:new Date(),
+      totalMarks,
+      notes:`Imported online test · ${assignments.length} students · ${firstQuestions.length} questions · ${duration} minutes`,
+      sourceExamId:exam._id
+    });
+
+    for(const assignment of assignments){
+      const student=assignment.student;
       student.assignedExamId=exam._id;
-      student.assignedExamTitle=String(data.title).trim();
+      student.assignedExamTitle=title;
+      student.assignedExamSubject=subject;
       student.assignedExamDuration=duration;
-      student.assignedExamQuestions=paper.questions;
+      student.assignedExamQuestions=assignment.questions;
       student.examStartedAt=null;
       student.examDeadline=null;
       student.examSubmittedAt=null;
@@ -194,6 +366,7 @@ app.post('/teacher/exam/import',teacherAuth,testUpload.single('testFile'),async(
       student.examQuestionIndex=0;
       await student.save();
     }
+
     res.redirect('/teacher#tests');
   }catch(e){
     console.error('Exam import:',e.message);
@@ -272,7 +445,7 @@ app.post('/teacher/leave/:id',teacherAuth,async(req,res)=>{await LeaveRequest.fi
 app.post('/teacher/fee',teacherAuth,async(req,res)=>{await Fee.create({studentId:req.body.studentId,month:req.body.month,amount:Number(req.body.amount),dueDate:new Date(req.body.dueDate),paid:req.body.paid==='true',paidDate:req.body.paid==='true'?new Date():null,method:req.body.method,transactionId:req.body.transactionId});res.redirect('/teacher');});
 app.post('/teacher/fee/:id/pay',teacherAuth,async(req,res)=>{await Fee.findByIdAndUpdate(req.params.id,{paid:true,paidDate:new Date(),method:req.body.method||'Cash',transactionId:req.body.transactionId||''});res.redirect('/teacher#fees');});
 app.post('/teacher/mark',teacherAuth,async(req,res)=>{const marks=Number(req.body.marks);const test=await Test.findById(req.body.testId).lean();if(!test||!Number.isFinite(marks)||marks<0||marks>Number(test.totalMarks))return res.redirect('/teacher#marks');if(test.sourceExamId){const student=await Student.findById(req.body.studentId).select('_id assignedExamId').lean();if(!student||String(student.assignedExamId)!==String(test.sourceExamId))return res.redirect('/teacher#marks');}else{const student=await Student.findById(req.body.studentId).select('_id standard').lean();if(!student|| (test.standard!==0&&test.standard!==Number(student.standard)))return res.redirect('/teacher#marks');}await Mark.findOneAndUpdate({testId:req.body.testId,studentId:req.body.studentId},{marks,remark:String(req.body.remark||'').slice(0,300),published:req.body.published==='true'},{upsert:true,setDefaultsOnInsert:true});res.redirect('/teacher#marks');});
-app.post('/teacher/test/:id/delete',teacherAuth,async(req,res)=>{const test=await Test.findById(req.params.id).lean();if(!test)return res.redirect('/teacher#tests');await Mark.deleteMany({testId:test._id});if(test.sourceExamId){await Student.updateMany({assignedExamId:test.sourceExamId},{$set:{assignedExamId:null,assignedExamTitle:'',assignedExamDuration:null,assignedExamQuestions:[],examStartedAt:null,examDeadline:null,examSubmittedAt:null,examOrder:[],examQuestionIndex:0},$unset:{examAnswers:1}});await Test.deleteMany({sourceExamId:test.sourceExamId});await Exam.deleteOne({_id:test.sourceExamId});}else{await Test.deleteOne({_id:test._id});if(test.attachment?.filePath)await fsp.unlink(test.attachment.filePath).catch(()=>{});}res.redirect('/teacher#tests');});
+app.post('/teacher/test/:id/delete',teacherAuth,async(req,res)=>{const test=await Test.findById(req.params.id).lean();if(!test)return res.redirect('/teacher#tests');await Mark.deleteMany({testId:test._id});if(test.sourceExamId){await Student.updateMany({assignedExamId:test.sourceExamId},{$set:{assignedExamId:null,assignedExamTitle:'',assignedExamSubject:'',assignedExamDuration:null,assignedExamQuestions:[],examStartedAt:null,examDeadline:null,examSubmittedAt:null,examOrder:[],examQuestionIndex:0},$unset:{examAnswers:1}});await Test.deleteMany({sourceExamId:test.sourceExamId});await Exam.deleteOne({_id:test.sourceExamId});}else{await Test.deleteOne({_id:test._id});if(test.attachment?.filePath)await fsp.unlink(test.attachment.filePath).catch(()=>{});}res.redirect('/teacher#tests');});
 app.post('/teacher/announcement',teacherAuth,async(req,res)=>{await Announcement.create({title:req.body.title,body:req.body.body,audience:req.body.audience||'all'});res.redirect('/teacher');});
 app.post('/teacher/class',teacherAuth,async(req,res)=>{await ClassSession.create({title:String(req.body.title||'').trim(),standard:Number(req.body.standard),subject:String(req.body.subject||'').trim(),date:indiaDateInputToDate(req.body.date),startTime:req.body.startTime,endTime:req.body.endTime,room:String(req.body.room||'').trim(),notes:String(req.body.notes||'').trim()});res.redirect('/teacher#schedule');});
 app.post('/teacher/class/:id/update',teacherAuth,async(req,res)=>{const c=await ClassSession.findById(req.params.id);if(!c)return res.redirect('/teacher#schedule');const start=String(req.body.startTime||'');const end=String(req.body.endTime||'');if(!/^\d{2}:\d{2}$/.test(start)||!/^\d{2}:\d{2}$/.test(end)||start>=end)return res.redirect('/teacher#schedule');Object.assign(c,{title:String(req.body.title||'').trim(),standard:Number(req.body.standard),subject:String(req.body.subject||'').trim(),date:indiaDateInputToDate(req.body.date),startTime:start,endTime:end,room:String(req.body.room||'').trim(),notes:String(req.body.notes||'').trim()});await c.save();res.redirect('/teacher#schedule');});

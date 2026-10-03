@@ -224,11 +224,48 @@
         <div class="section-toolbar"><div><span class="eyebrow">TEST MANAGEMENT</span><h2>Tests</h2><p>Create online JSON tests or record normal offline tests conducted in class.</p></div></div>
         <div class="grid two">
           <section class="card import-card">
-            <div class="import-icon">↑</div><h3>Online test</h3><p>Upload the existing JSON file containing individual student papers.</p>
+            <div class="import-icon">↑</div>
+            <h3>Online test</h3>
+            <p>Upload a flexible JSON question set. Use the same questions for a whole standard or use individual student papers.</p>
             <% if(examError){ %><div class="notice error"><%= examError %></div><% } %>
             <form method="post" action="/teacher/exam/import" enctype="multipart/form-data">
-              <label class="file-drop">Choose test JSON<input name="testFile" type="file" accept="application/json,.json" required></label>
-              <div class="notice">Each paper: 10 Direct → Indirect + 10 Grammar questions.</div>
+              <div class="form-grid two">
+                <label>Subject
+                  <input name="subject" placeholder="English, Maths, Science, History..." autocomplete="off">
+                  <span class="small">Leave empty to use the JSON subject.</span>
+                </label>
+                <label>Standard
+                  <select name="standard">
+                    <option value="0">All Students</option>
+                    <option value="9">Std 9</option>
+                    <option value="10">Std 10</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-grid two">
+                <label>Assignment mode
+                  <select name="assignmentMode">
+                    <option value="common">Same questions for all selected students</option>
+                    <option value="individual">Use individual papers from JSON</option>
+                  </select>
+                </label>
+                <label>Question limit
+                  <input name="questionLimit" type="number" min="0" step="1" value="0" placeholder="0 = all">
+                  <span class="small">0 = all questions. Any positive number limits each paper.</span>
+                </label>
+              </div>
+
+              <label class="file-drop">Choose test JSON
+                <input name="testFile" type="file" accept="application/json,.json" required>
+              </label>
+
+              <div class="notice">
+                No fixed 20-question rule.
+                Common JSON uses <code>title</code>, <code>subject</code>, <code>standard</code>, <code>duration</code> and <code>questions[]</code>.
+                Individual JSON uses <code>papers[]</code>.
+              </div>
+
               <button>Import & assign online test</button>
             </form>
           </section>
@@ -259,7 +296,7 @@
           <section class="card">
             <div class="section-head"><div><h3>Online tests</h3><p>Tests assigned through individual online papers.</p></div></div>
             <% if(!exams.length){ %><div class="empty">No online tests imported yet.</div><% } else { %>
-              <div class="test-list"><% exams.forEach(function(e){ %><div class="test-card"><div class="test-icon">▣</div><div class="student-main"><strong><%= e.title %></strong><span class="small">Online test · <%= e.paperCount %> papers · <%= e.duration %> min</span></div><span class="pill success">Assigned</span><form method="post" action="/teacher/test/<%= e._id %>/delete" onsubmit="return confirm('Delete this online test, its marks and student assignments?')"><button class="danger small-button">Delete</button></form></div><% }); %></div>
+              <div class="test-list"><% exams.forEach(function(e){ %><div class="test-card"><div class="test-icon">▣</div><div class="student-main"><strong><%= e.title %></strong><span class="small"><%= e.subject||'General' %> · <%= e.standard===0?'All Students':'Std '+e.standard %> · <%= e.paperCount||0 %> students · <%= e.duration %> min</span></div><span class="pill success">Assigned</span><form method="post" action="/teacher/test/<%= e._id %>/delete" onsubmit="return confirm('Delete this online test, its marks and student assignments?')"><button class="danger small-button">Delete</button></form></div><% }); %></div>
             <% } %>
           </section>
 
