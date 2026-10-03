@@ -12,6 +12,22 @@ function indiaDateKey(date=new Date()){
 function indiaStartOfDay(dateKey=indiaDateKey()){
   return new Date(`${dateKey}T00:00:00+05:30`);
 }
+function indiaDateInputToDate(value){
+  const raw=String(value||'').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00+05:30`) : new Date();
+}
+function classStatus(c){
+  const today=indiaDateKey();
+  const classDay=indiaDateKey(c.date);
+  if(classDay<today)return 'completed';
+  if(classDay>today)return 'upcoming';
+  const now=new Intl.DateTimeFormat('en-GB',{timeZone:INDIA_TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date());
+  const start=String(c.startTime||'00:00');
+  const end=String(c.endTime||'23:59');
+  if(now<start)return 'upcoming';
+  if(now<end)return 'ongoing';
+  return 'completed';
+}
 function formatIndiaDateTime(date, options={}){
   if(!date)return '-';
   return new Intl.DateTimeFormat('en-IN',{timeZone:INDIA_TZ,...options}).format(new Date(date));
@@ -226,7 +242,7 @@ app.get('/teacher',teacherAuth,async(req,res)=>{
     }
   }
 
-  res.render('teacher',{students,fees,leaves,tests,marks,attendance,attendanceDate,announcements,classes,homeworks,recordings,exams,examError:req.query.examError||'',testError:req.query.testError||'',teacherName:process.env.TEACHER_NAME||'Kundaram Chandrakala',formatIndiaDate,formatIndiaDateTime});
+  res.render('teacher',{students,fees,leaves,tests,marks,attendance,attendanceDate,announcements,classes:classes.map(c=>({...c,classStatus:classStatus(c)})),homeworks,recordings,exams,examError:req.query.examError||'',testError:req.query.testError||'',teacherName:process.env.TEACHER_NAME||'Kundaram Chandrakala',formatIndiaDate,formatIndiaDateTime});
 });
 
 app.post('/teacher/attendance/bulk',teacherAuth,async(req,res)=>{
@@ -256,7 +272,8 @@ app.post('/teacher/fee/:id/pay',teacherAuth,async(req,res)=>{await Fee.findByIdA
 app.post('/teacher/mark',teacherAuth,async(req,res)=>{const marks=Number(req.body.marks);const test=await Test.findById(req.body.testId).lean();if(!test||!Number.isFinite(marks)||marks<0||marks>Number(test.totalMarks))return res.redirect('/teacher#marks');if(test.sourceExamId){const student=await Student.findById(req.body.studentId).select('_id assignedExamId').lean();if(!student||String(student.assignedExamId)!==String(test.sourceExamId))return res.redirect('/teacher#marks');}else{const student=await Student.findById(req.body.studentId).select('_id standard').lean();if(!student|| (test.standard!==0&&test.standard!==Number(student.standard)))return res.redirect('/teacher#marks');}await Mark.findOneAndUpdate({testId:req.body.testId,studentId:req.body.studentId},{marks,remark:String(req.body.remark||'').slice(0,300),published:req.body.published==='true'},{upsert:true,setDefaultsOnInsert:true});res.redirect('/teacher#marks');});
 app.post('/teacher/test/:id/delete',teacherAuth,async(req,res)=>{const test=await Test.findById(req.params.id).lean();if(!test)return res.redirect('/teacher#tests');await Mark.deleteMany({testId:test._id});if(test.sourceExamId){await Student.updateMany({assignedExamId:test.sourceExamId},{$set:{assignedExamId:null,assignedExamTitle:'',assignedExamDuration:null,assignedExamQuestions:[],examStartedAt:null,examDeadline:null,examSubmittedAt:null,examOrder:[],examQuestionIndex:0},$unset:{examAnswers:1}});await Test.deleteMany({sourceExamId:test.sourceExamId});await Exam.deleteOne({_id:test.sourceExamId});}else{await Test.deleteOne({_id:test._id});if(test.attachment?.filePath)await fsp.unlink(test.attachment.filePath).catch(()=>{});}res.redirect('/teacher#tests');});
 app.post('/teacher/announcement',teacherAuth,async(req,res)=>{await Announcement.create({title:req.body.title,body:req.body.body,audience:req.body.audience||'all'});res.redirect('/teacher');});
-app.post('/teacher/class',teacherAuth,async(req,res)=>{await ClassSession.create({title:req.body.title,standard:Number(req.body.standard),subject:req.body.subject,date:new Date(req.body.date),startTime:req.body.startTime,endTime:req.body.endTime,room:req.body.room,notes:req.body.notes});res.redirect('/teacher');});
+app.post('/teacher/class',teacherAuth,async(req,res)=>{await ClassSession.create({title:String(req.body.title||'').trim(),standard:Number(req.body.standard),subject:String(req.body.subject||'').trim(),date:indiaDateInputToDate(req.body.date),startTime:req.body.startTime,endTime:req.body.endTime,room:String(req.body.room||'').trim(),notes:String(req.body.notes||'').trim()});res.redirect('/teacher#schedule');});
+app.post('/teacher/class/:id/update',teacherAuth,async(req,res)=>{const c=await ClassSession.findById(req.params.id);if(!c)return res.redirect('/teacher#schedule');const start=String(req.body.startTime||'');const end=String(req.body.endTime||'');if(!/^\d{2}:\d{2}$/.test(start)||!/^\d{2}:\d{2}$/.test(end)||start>=end)return res.redirect('/teacher#schedule');Object.assign(c,{title:String(req.body.title||'').trim(),standard:Number(req.body.standard),subject:String(req.body.subject||'').trim(),date:indiaDateInputToDate(req.body.date),startTime:start,endTime:end,room:String(req.body.room||'').trim(),notes:String(req.body.notes||'').trim()});await c.save();res.redirect('/teacher#schedule');});
 app.post('/teacher/homework',teacherAuth,homeworkUpload.single('attachment'),async(req,res)=>{const h={title:req.body.title,description:req.body.description,standard:Number(req.body.standard),subject:req.body.subject,dueDate:new Date(req.body.dueDate)};if(req.file)h.attachment={originalName:req.file.originalname,fileName:req.file.filename,filePath:req.file.path,mimeType:req.file.mimetype,size:req.file.size};await Homework.create(h);res.redirect('/teacher#homework');});
 app.post('/teacher/student',teacherAuth,async(req,res)=>{const name=String(req.body.name||'').trim(),standard=Number(req.body.standard),studentId=String(req.body.studentId||'').trim().toUpperCase(),username=String(req.body.username||'').trim();if(!name||![9,10].includes(standard)||!studentId||!username||!req.body.password)return res.redirect('/teacher#students');const exists=await Student.findOne({$or:[{studentId},{username}]});if(exists)return res.redirect('/teacher#students');const paperCode=studentId;const passwordHash=await bcrypt.hash(req.body.password,12);await Student.create({studentId,name,standard,username,passwordHash,paperCode,parentName:req.body.parentName,parentPhone:req.body.parentPhone,studentPhone:req.body.studentPhone,school:req.body.school,joiningDate:req.body.joiningDate?new Date(req.body.joiningDate):new Date(),subjects:String(req.body.subjects||'').split(',').map(x=>x.trim()).filter(Boolean),status:'active'});res.redirect('/teacher#students');});
 app.post('/teacher/student/:id/update',teacherAuth,async(req,res)=>{const s=await Student.findById(req.params.id);if(!s)return res.redirect('/teacher#students');Object.assign(s,{name:req.body.name,standard:Number(req.body.standard),parentName:req.body.parentName,parentPhone:req.body.parentPhone,studentPhone:req.body.studentPhone,school:req.body.school,subjects:String(req.body.subjects||'').split(',').map(x=>x.trim()).filter(Boolean)});if(req.body.password)s.passwordHash=await bcrypt.hash(req.body.password,12);await s.save();res.redirect('/teacher#students');});
