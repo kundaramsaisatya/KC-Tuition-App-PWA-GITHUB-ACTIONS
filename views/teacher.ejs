@@ -1,4 +1,8 @@
 <%- include('partials/header',{title:'Teacher Dashboard'}) %>
+<style>
+.nav-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin-left:6px;border-radius:999px;background:#3156d8;color:#fff;font-size:11px;font-weight:700}
+</style>
+
 
 <div class="app-shell teacher-app">
   <aside class="sidebar">
@@ -12,6 +16,7 @@
       <button data-section="overview"><span class="nav-icon">⌂</span><span>Overview</span></button>
       <button data-section="students"><span class="nav-icon">◉</span><span>Students</span></button>
       <button data-section="attendance"><span class="nav-icon">✓</span><span>Attendance</span></button>
+      <button data-section="leave-requests"><span class="nav-icon">✦</span><span>Leave Requests<% if (leaves && leaves.length) { %> <span class="nav-badge"><%= leaves.length %></span><% } %></span></button>
       <button data-section="tests"><span class="nav-icon">▣</span><span>Tests</span></button>
       <button data-section="marks"><span class="nav-icon">★</span><span>Marks</span></button>
       <button data-section="homework"><span class="nav-icon">▤</span><span>Homework</span></button>
@@ -37,7 +42,7 @@
   <main class="main">
     <header class="topbar">
       <div class="top-actions">
-        <button class="mobile-menu" data-menu>☰</button>
+      <button class="mobile-menu" data-menu style="color:#000 !important;background:transparent;">☰</button>
         <div class="topbar-title">
           <h1 data-page-title>Overview</h1>
           <p data-page-desc>Everything important at a glance.</p>
@@ -171,6 +176,48 @@
             <% }); %>
           </div>
         </form>
+      </section>
+
+      <section class="section" data-panel="leave-requests" data-title="Leave Requests" data-desc="Review and respond to student leave requests.">
+        <div class="section-toolbar">
+          <div><span class="eyebrow">STUDENT REQUESTS</span><h2>Leave Requests</h2><p>Review pending leave requests submitted by students and approve or reject them.</p></div>
+          <span class="date-chip"><%= leaves ? leaves.length : 0 %> Pending</span>
+        </div>
+        <div class="grid two">
+          <% if (leaves && leaves.length) { %>
+            <% leaves.forEach(function(l){ %>
+              <article class="card" style="display:flex;flex-direction:column;gap:14px;">
+                <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+                  <div>
+                    <h3 style="margin:0;"><%= l.studentId?.name || 'Student' %></h3>
+                    <div class="small">Std <%= l.studentId?.standard || '—' %> · <%= l.studentId?.username || '' %></div>
+                  </div>
+                  <span class="date-chip">Pending</span>
+                </div>
+                <div class="small">
+                  <strong>From:</strong> <%= formatIndiaDate(l.from) %>
+                  &nbsp; <strong>To:</strong> <%= formatIndiaDate(l.to) %>
+                </div>
+                <div>
+                  <strong>Reason</strong>
+                  <p style="margin:6px 0 0;"><%= l.reason || 'No reason provided.' %></p>
+                </div>
+                <form method="post" action="/teacher/leave/<%= l._id %>" style="display:flex;flex-direction:column;gap:10px;">
+                  <textarea name="teacherNote" rows="2" placeholder="Optional note to student"></textarea>
+                  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button type="submit" name="status" value="approved">Approve</button>
+                    <button type="submit" name="status" value="rejected" class="secondary">Reject</button>
+                  </div>
+                </form>
+              </article>
+            <% }); %>
+          <% } else { %>
+            <div class="card" style="grid-column:1/-1;text-align:center;padding:40px;">
+              <h3>No pending leave requests</h3>
+              <p class="small">Student leave requests will appear here when submitted.</p>
+            </div>
+          <% } %>
+        </div>
       </section>
 
       <section class="section" data-panel="tests" data-title="Tests" data-desc="Create online or offline tests and manage question papers.">
