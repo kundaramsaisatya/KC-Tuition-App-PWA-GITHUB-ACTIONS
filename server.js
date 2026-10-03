@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express=require('express'),mongoose=require('mongoose'),session=require('express-session'),MongoStore=require('connect-mongo'),rateLimit=require('express-rate-limit'),path=require('path'),bcrypt=require('bcryptjs');
 const Student=require('./models/Student'),Activity=require('./models/Activity'),Attendance=require('./models/Attendance'),LeaveRequest=require('./models/LeaveRequest'),Fee=require('./models/Fee'),Test=require('./models/Test'),Mark=require('./models/Mark'),Announcement=require('./models/Announcement'),ClassSession=require('./models/ClassSession'),Homework=require('./models/Homework'),ExamRecording=require('./models/ExamRecording'),Exam=require('./models/Exam');
-const {studentAuth,teacherAuth,logActivity}=require('./middleware/auth'); const questions=require('./data/questions'); const fs=require('fs');
+const {studentAuth,teacherAuth,logActivity}=require('./middleware/auth'); const fs=require('fs');
 
 // All tuition-facing dates/times are displayed and interpreted in India Standard Time.
 const INDIA_TZ='Asia/Kolkata';
@@ -295,30 +295,33 @@ app.post('/teacher/exam/import',teacherAuth,testUpload.single('testFile'),async(
       }
     }
 
-    // Re-importing the same title replaces the previous online test cleanly.
-    const previousExams=await Exam.find({title}).lean();
-    for(const oldExam of previousExams){
-      const oldTests=await Test.find({sourceExamId:oldExam._id}).select('_id').lean();
-      const oldTestIds=oldTests.map(t=>t._id);
-      if(oldTestIds.length)await Mark.deleteMany({testId:{$in:oldTestIds}});
-      await Test.deleteMany({sourceExamId:oldExam._id});
-      await Student.updateMany(
-        {assignedExamId:oldExam._id},
-        {$set:{
-          assignedExamId:null,
-          assignedExamTitle:'',
-          assignedExamSubject:'',
-          assignedExamDuration:null,
-          assignedExamQuestions:[],
-          examStartedAt:null,
-          examDeadline:null,
-          examSubmittedAt:null,
-          examOrder:[],
-          examQuestionIndex:0
-        },$unset:{examAnswers:1}}
-      );
-      await Exam.deleteOne({_id:oldExam._id});
-    }
+    // A new online-test import is the single active online test.
+    // Clear every previously assigned online paper first so stale Direct/Indirect
+    // or other old questions can never remain visible to a student.
+    const previousExams=await Exam.find({}).lean();
+    const previousExamIds=previousExams.map(e=>e._id);
+    const oldTests=previousExamIds.length
+      ? await Test.find({sourceExamId:{$in:previousExamIds}}).select('_id').lean()
+      : [];
+    const oldTestIds=oldTests.map(t=>t._id);
+    if(oldTestIds.length)await Mark.deleteMany({testId:{$in:oldTestIds}});
+    if(previousExamIds.length)await Test.deleteMany({sourceExamId:{$in:previousExamIds}});
+    await Student.updateMany(
+      {assignedExamId:{$ne:null}},
+      {$set:{
+        assignedExamId:null,
+        assignedExamTitle:'',
+        assignedExamSubject:'',
+        assignedExamDuration:null,
+        assignedExamQuestions:[],
+        examStartedAt:null,
+        examDeadline:null,
+        examSubmittedAt:null,
+        examOrder:[],
+        examQuestionIndex:0
+      },$unset:{examAnswers:1}}
+    );
+    if(previousExamIds.length)await Exam.deleteMany({_id:{$in:previousExamIds}});
 
     const examStandard=mode==='individual'
       ?(assignments.every(a=>a.student.standard===assignments[0].student.standard)
