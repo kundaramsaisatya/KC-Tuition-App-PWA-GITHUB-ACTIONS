@@ -251,10 +251,9 @@ app.post('/teacher/exam/import',teacherAuth,testUpload.single('testFile'),async(
 
         const student=await Student.findOne({username,standard,status:'active'});
         if(!student)throw new Error(`Student not found or inactive: ${username}`);
-        if(student.examStartedAt&&!student.examSubmittedAt){
-          throw new Error(`${student.name} currently has an active exam`);
-        }
 
+        // Existing active exams are intentionally replaced by this new import.
+        // The cleanup below resets the student's old exam state before assignment.
         assignments.push({student,questions:qs});
       }
 
@@ -285,9 +284,8 @@ app.post('/teacher/exam/import',teacherAuth,testUpload.single('testFile'),async(
       }
 
       for(const student of students){
-        if(student.examStartedAt&&!student.examSubmittedAt){
-          throw new Error(`${student.name} currently has an active exam`);
-        }
+        // Any previous active exam will be cleared below because a new import
+        // replaces the single active online test for all selected students.
         assignments.push({
           student,
           questions:JSON.parse(JSON.stringify(qs))
