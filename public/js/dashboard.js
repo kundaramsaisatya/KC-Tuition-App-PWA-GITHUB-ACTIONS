@@ -16,4 +16,15 @@
   }
   buttons.forEach(b=>b.addEventListener('click',()=>activate(b.dataset.section)));
   const initial=location.hash.replace('#',''); activate(sections.some(s=>s.dataset.panel===initial)?initial:(sections[0]?.dataset.panel||'overview'));
+  if(location.pathname==='/student'){
+    const send=(action,details)=>fetch('/client-event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,details}),keepalive:true}).catch(()=>{});
+    send('page_view',location.pathname+location.hash);
+    let last=Date.now();
+    const heartbeat=()=>{send('heartbeat',`route=${location.pathname}${location.hash};visible=${!document.hidden};seconds=${Math.round((Date.now()-last)/1000)}`);last=Date.now();};
+    setInterval(heartbeat,30000);
+    document.addEventListener('visibilitychange',()=>send(document.hidden?'app_hidden':'app_visible',location.pathname+location.hash));
+    window.addEventListener('pagehide',()=>send('app_exit_detected',location.pathname+location.hash));
+    window.addEventListener('hashchange',()=>send('page_view',location.pathname+location.hash));
+  }
+  if(location.pathname==='/student' && 'Notification' in window && Notification.permission==='default'){setTimeout(()=>Notification.requestPermission().catch(()=>{}),1200);}
 })();

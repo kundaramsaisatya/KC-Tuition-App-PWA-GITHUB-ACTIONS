@@ -7,9 +7,9 @@
     <div class="sidebar-footer"><div class="teacher-mini"><small>Teacher</small><strong>Kundaram Chandrakala</strong></div></div>
   </aside>
   <main class="main">
-    <header class="topbar"><div class="top-actions"><a class="button secondary" href="/teacher">← Dashboard</a><div class="topbar-title"><h1>Student Activity</h1><p>Review exam and portal activity student by student.</p></div></div><div class="avatar">KC</div></header>
+    <header class="topbar"><div class="top-actions"><a class="button secondary" href="/teacher">← Dashboard</a><div class="topbar-title"><h1>Student Activity</h1><p>See login, route, tab, heartbeat and exit events with accurate India time.</p></div></div><div class="avatar">KC</div></header>
     <div class="content">
-      <div class="section-toolbar"><div><span class="eyebrow">STUDENT ACTIVITY</span><h2><%= student ? student.name+' · Activity' : 'All students' %></h2><p><%= student ? 'Detailed activity log for this student.' : 'Select a student to view their complete activity log.' %></p></div></div>
+      <div class="section-toolbar"><div><span class="eyebrow">STUDENT ACTIVITY</span><h2><%= student ? student.name+' · Activity' : 'All students' %></h2><p><%= student ? 'Detailed activity timeline for this student.' : 'Select a student to view their complete activity log.' %></p></div></div>
       <div class="activity-layout">
         <section class="card activity-students">
           <div class="section-head"><div><h3>Students</h3><p><%= students.length %> profiles</p></div></div>
@@ -28,7 +28,7 @@
             <div class="activity-empty"><div class="empty-icon">◌</div><h3>Select a student</h3><p>Choose a student from the list to see login, exam, camera and other recorded activity.</p></div>
           <% } else { %>
             <div class="activity-profile"><div class="student-avatar large-avatar"><%= student.name.slice(0,1) %></div><div><h3><%= student.name %></h3><p>Std <%= student.standard %> · Camera <%= student.cameraGranted?'Granted':'Not granted' %></p></div></div>
-            <div class="table-wrap"><table><tr><th>Time</th><th>Action</th><th>Details</th><th>IP</th></tr><% if(!activities.length){ %><tr><td colspan="4" class="empty">No activity recorded yet.</td></tr><% } else { activities.forEach(function(a){ %><tr><td><%= new Date(a.createdAt).toLocaleString() %></td><td><span class="pill"><%= a.action %></span></td><td><%= a.details||'-' %></td><td><%= a.ip||'-' %></td></tr><% }); } %></table></div>
+            <div class="table-wrap"><table><tr><th>Time</th><th>Action</th><th>Details</th><th>IP</th></tr><% if(!activities.length){ %><tr><td colspan="4" class="empty">No activity recorded yet.</td></tr><% } else { activities.forEach(function(a){ %><tr><td><%= formatIndiaDateTime(a.createdAt,{dateStyle:'medium',timeStyle:'medium'}) %></td><td><span class="pill"><%= a.action %></span></td><td><%= a.details||'-' %></td><td><%= a.ip||'-' %></td></tr><% }); } %></table></div>
           <% } %>
         </section>
       </div>
